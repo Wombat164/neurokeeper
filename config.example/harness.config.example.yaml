@@ -1,0 +1,28 @@
+# claude-harness -- example consumer config (L2). Copy to your private config repo / .claude/config/
+# and fill with YOUR values. The harness (L1a) ships SCHEMAS + examples only; never real config.
+
+# Where the file-based memory store lives (engines read this via CLAUDE_MEMORY_DIR).
+memory_dir: "~/.claude/memory"
+
+# Soft byte-budget for the memory index file before it partial-loads (tune to your harness).
+memory_bytes_budget: 45000
+
+# OPTIONAL vault metrics (leave unset to skip):
+vault_inbox_dir: ""     # enables the inbox-pressure metric
+vault_root: ""          # enables the active-note-count / scale metric
+
+# Path to the forbidden-zones denylist that mutating capabilities hard-stop on.
+forbidden_zones_file: ".claude/forbidden-zones.txt"
+
+# Per-env adapter selection (which bindings are active here).
+adapters:
+  claude_code_plugin: true
+  mcp: false            # flip on when a capability graduates (see pattern doc, MCP ladder)
+  cli: true
+
+# --- vault taxonomy engines (L1a) -- read from the environment ---
+vault_root: "/path/to/your/obsidian/vault"            # VAULT_ROOT
+vault_scan_exclude: ".obsidian,.claude,.git,.trash"   # VAULT_SCAN_EXCLUDE (dirs the engines skip)
+vault_norename_zones: ""                               # VAULT_NORENAME_ZONES (protect legal/curated dirs
+                                                      #   from name-reconcile rename; e.g. "06 - Procurement,Sources")
+frontmatter_schema: ".claude/data/frontmatter-schema.yaml"  # FRONTMATTER_SCHEMA (schema-as-code; see example)

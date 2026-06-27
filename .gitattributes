@@ -1,0 +1,7 @@
+# Guarantee correct line endings cross-platform (Linux co-equal): .sh MUST be LF or it fails on Linux.
+*.sh    text eol=lf
+*.ps1   text eol=crlf
+*.py    text eol=lf
+*.md    text
+*.yaml  text eol=lf
+*.json  text eol=lf

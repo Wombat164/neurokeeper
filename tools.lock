@@ -1,0 +1,11 @@
+# claude-harness tool dependencies (the engines' runtime). Pin per env in your config repo.
+# Classify: headless = CI-reproducible; gui = needs a desktop app; manual = install by hand.
+
+python:        ">=3.9"           # headless -- engines are stdlib-only (yaml optional)
+git:           ">=2.30"          # headless
+gitleaks:      ">=8.0"           # headless -- secret-scan pre-commit (optional but recommended)
+
+# Optional, capability-specific (only if you enable those capabilities):
+pyyaml:        "*"               # headless -- richer frontmatter parsing in some engines
+# obsidian-cli:  needs a running Obsidian GUI -- gui
+# pandoc/typst:  document render capabilities -- headless (separate render-toolchain)

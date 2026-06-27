@@ -1,0 +1,10 @@
+# Repos to clone on a fresh PC -- one git URL per line. Copy to repos.txt (gitignored) + fill REAL URLs.
+# bootstrap.ps1 clones each into -Root (default ~/Projects), skipping any that already exist.
+# Keep this example placeholder-only; the real list is private.
+#
+# https://gitlab.com/<you>/<obsidian-vault>      # the vault repo (carries .claude/ config + content)
+# https://gitlab.com/<you>/claude-harness        # this harness
+# https://gitlab.com/<you>/<memory-repo>         # private Claude memory backup (clone into ~/.claude/.../memory)
+# https://gitlab.com/<you>/<shared-memory>       # cross-env _shared core
+# https://gitlab.com/<you>/<dev-repo-1>
+# https://github.com/<you>/<dev-repo-2>

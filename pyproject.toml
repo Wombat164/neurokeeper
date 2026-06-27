@@ -1,0 +1,51 @@
+# claude-harness packaging (PEP 621 + hatchling).
+# The deterministic engines live in scripts/ (single-file, also the Claude Code plugin payload).
+# This makes the same codebase pip/uvx/pipx-installable as a CLI via a thin dispatcher, WITHOUT
+# moving the engines (so the plugin refs + the pytest suite stay valid).
+#
+# Install:  pipx install claude-harness   |   uv tool install claude-harness   |   pip install -e ".[dev]"
+# Use:      claude-harness <engine> [args]   (e.g. claude-harness name-reconcile --json)
+# Licence: MIT (see LICENSE). Author identity is kept neutral ("claude-harness contributors").
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "claude-harness"
+version = "0.1.0"
+description = "Portable-core harness for agentic coding/knowledge work: deterministic engines + prompt templates + thin adapters."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "claude-harness contributors" }]
+keywords = ["claude-code", "obsidian", "knowledge-management", "agent", "config-as-code", "vault"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Topic :: Utilities",
+]
+dependencies = ["pyyaml>=6.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.6"]
+
+[project.scripts]
+claude-harness = "claude_harness.cli:main"
+
+# Ship the thin dispatcher package PLUS the engines/prompts as package data (mapped under the
+# package on a built wheel; located at the repo root in an editable/plugin checkout -- cli.py handles both).
+[tool.hatch.build.targets.wheel]
+packages = ["claude_harness"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"scripts" = "claude_harness/_engines"
+"prompts" = "claude_harness/_prompts"
+
+[tool.ruff]
+line-length = 140
+
+[tool.ruff.lint]
+select = ["F", "E9"]

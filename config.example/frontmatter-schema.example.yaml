@@ -1,0 +1,87 @@
+# Vault frontmatter schema-as-code. The L1a-generic lint engine
+# (vault-frontmatter-lint.py) validates notes against this L2 config. Values here are
+# vault-specific; the engine is vault-agnostic. See docs/pattern-portable-core-and-adapters.md.
+version: 1
+
+# ---- KOS axes (orthogonal; never conflate -- see the design doc) ----
+axes:
+  note_type:                 # structural role
+    values: [note, moc, spine, project, dossier, meeting, daily, source, capture, outbox, template, spec]
+    recommended: true        # lint WARNS (not blocks) if missing
+  sphere:                    # example work-partition axis (which team/hat owns a note)
+    values: [team-a, team-b, shared]
+    list: true               # list allowed for spanning notes
+    recommended: true        # WARN if missing (advisory; going-forward + as-touched)
+  domain:                    # knowledge subject -- open vocab (lowercase-kebab), not enum-checked
+    open: true
+  scope:                     # cross-env sync boundary -- only on the shared-memory repo, not vault content
+    values: [cross-env, local]
+
+# ---- state axis ----
+state:
+  status:
+    values: [stub, draft, review, active, parked, superseded, archived]
+    outbox_values: [pending, sent, void]   # valid ONLY when note_type: outbox
+    # observed non-standard values -> canonical (the reconciliation map; 27 -> 7+outbox).
+    # JUDGMENT-FLAGGED entries (operator to confirm) marked (?).
+    map:
+      extracted: draft
+      "in-review": review
+      open: active
+      closed: archived
+      archived-reference: archived
+      archived-legacy: archived
+      shipped: archived
+      reference: active
+      backlog: draft
+      complete: archived        # (?) or add a 'done' status
+      completed: archived       # (?)
+      final: archived           # (?)
+      planned: draft            # (?) or add a 'planned' status
+      pending: draft            # except note_type: outbox (where pending is valid)
+      # maturity-values misused as status -> move value to maturity:, set status from context:
+      approved: {move_to_maturity: approved, set_status: active}
+      decided:  {move_to_maturity: decided,  set_status: active}
+      proposed: {move_to_maturity: proposed, set_status: draft}
+  maturity:
+    values: [fact, current, approved, decided, proposed, exploratory, red-teamed, deprecated]
+  horizon:
+    values: [present, near, mid, far, timeless]
+    map: {"mid-to-far": mid, past: timeless}
+  lang:
+    values: [nl, fr, en]
+
+# ---- date fields (keep date; coexistence is benign) ----
+dates:
+  canonical: [date, created, updated]   # date = human-facing creation date (often entrenched across many
+                                        # notes, templates, and queries); created/updated = notes-app /
+                                        # linter-maintained extras. All coexist.
+  # 'date' is NOT deprecated. The date+created overlap is benign redundancy, NOT a defect ->
+  # the lint does not flag it (given how entrenched 'date' typically is).
+
+# ---- tags ----
+tags:
+  canonical: kebab-case          # lowercase + hyphen-separated; matches the filename convention
+  reconcile_engine: scripts/vault-tag-reconcile.py   # DETECTS morphological merge groups -> proposal (the gap)
+  apply_via: Tag Wrangler        # Obsidian plugin (pjeby, MIT, https://github.com/pjeby/tag-wrangler): does the actual
+                                 # rename/merge via Obsidian's parse engine (no linter-race, updates all usages incl.
+                                 # child tags). The engine's --apply is the guarded fallback.
+  exclude_norms: [pac]           # semantic false-positives never auto-merged (PACS != PAC)
+
+# ---- known fields (anything else -> unknown-field warning) ----
+known_fields:
+  - tags
+  - note_type, sphere, domain, scope          # axes
+  - status, maturity, horizon, lang           # state
+  - created, updated, date                     # dates
+  - aliases, classification, distribution      # common
+  - programme, contract, project, system, component, variant, initiative  # example scope taxonomy
+  - source, owner, kind, audience, type        # misc
+  - priority, deadline, stakeholders, phase    # project
+  - attendees, location                        # meeting
+  - chat-date, authored_at                     # chat-import / capture
+  - title, subtitle, version, week, tracker-ref, related, relates_to, companion  # structure / links
+  - recipient, trust, persona, role, name, email, organisation, cell, employment, team, review_state  # personnel / outbox / capture
+  - marp, paginate, theme, footer, header, size, class, math, style  # Marp / render directives
+  - ingested_via, analyzed_in, sources, source-url, captured, captured_at  # capture / provenance
+  - contract-ref, unit, phone, supplier, budget, due  # procurement / misc
