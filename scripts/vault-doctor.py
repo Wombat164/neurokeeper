@@ -92,7 +92,7 @@ def main():
         print(json.dumps(roll, indent=2, ensure_ascii=False))
         sys.exit(1 if (check and failed) else 0)
 
-    print("=== claude-harness doctor ===")
+    print("=== neurokeeper doctor ===")
     marks = {"ok": "[ok]   ", "fail": "[FAIL] ", "skipped": "[skip] ", "error": "[ERROR]"}
     for r in results:
         line = f"  {marks[r['state']]} {r['engine']}"

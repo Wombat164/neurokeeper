@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# claude-harness fresh-machine bootstrap (Linux / macOS, co-equal). Sibling of bootstrap.ps1 (Windows).
+# neurokeeper fresh-machine bootstrap (Linux / macOS, co-equal). Sibling of bootstrap.ps1 (Windows).
 # Idempotent: skips what's already present. Installs the headless toolchain, then clones the repos
 # listed in your private repos config. Auth + GUI + Obsidian-plugin steps are MANUAL -- see RUNBOOK.md.
 # Usage:  ./bootstrap.sh [REPOS_FILE] [ROOT]      (defaults: ./repos.txt  ~/Projects)
@@ -72,5 +72,5 @@ cat <<'EOF'
   - auth:  gh auth login ; glab auth login ; claude (login)
   - Obsidian (Linux: flatpak/AppImage/snap | macOS: brew install --cask obsidian) + plugins (Tag Wrangler, Linter[configure!], Frontmatter Smith, Git)
   - restore Claude memory: clone the memory repo into ~/.claude/projects/<env>/memory ; pull _shared/
-  - install this harness as a plugin: /plugin marketplace add https://github.com/Wombat164/claude-harness ; /plugin install claude-harness
+  - install this harness as a plugin: /plugin marketplace add https://github.com/Wombat164/neurokeeper ; /plugin install neurokeeper
 EOF

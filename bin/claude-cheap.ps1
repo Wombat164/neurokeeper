@@ -2,7 +2,7 @@
 # See docs/two-lane-model-handoff.md. Runs `claude` against a SELF-HOSTED, Anthropic-/v1/messages-
 # compatible endpoint for batch/mechanical work; your default `claude` is untouched.
 #
-# Config (env, or a file at $env:CLAUDE_CHEAP_ENV / ~/.config/claude-harness/cheap-lane.env, KEY=VALUE):
+# Config (env, or a file at $env:CLAUDE_CHEAP_ENV / ~/.config/neurokeeper/cheap-lane.env, KEY=VALUE):
 #   CLAUDE_CHEAP_BASE_URL [required] | CLAUDE_CHEAP_MODEL [optional] | CLAUDE_CHEAP_TOKEN [default: local]
 #
 # WARNING (billing): exporting ANTHROPIC_BASE_URL + a token routes THIS invocation off your subscription
@@ -10,7 +10,7 @@
 # keep it on a host you control for sensitive content.
 $ErrorActionPreference = "Stop"
 
-$cfg = if ($env:CLAUDE_CHEAP_ENV) { $env:CLAUDE_CHEAP_ENV } else { "$HOME/.config/claude-harness/cheap-lane.env" }
+$cfg = if ($env:CLAUDE_CHEAP_ENV) { $env:CLAUDE_CHEAP_ENV } else { "$HOME/.config/neurokeeper/cheap-lane.env" }
 $allow = @("CLAUDE_CHEAP_BASE_URL", "CLAUDE_CHEAP_MODEL", "CLAUDE_CHEAP_TOKEN")
 if (Test-Path $cfg) {
   Get-Content $cfg | Where-Object { $_ -and -not $_.StartsWith("#") -and $_.Contains("=") } | ForEach-Object {

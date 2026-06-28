@@ -11,7 +11,7 @@ tags:
 
 ## Conventions used in the catalog
 
-- **CLI name** -- the dispatcher subcommand: `claude-harness <name> [args]`.
+- **CLI name** -- the dispatcher subcommand: `neurokeeper <name> [args]`.
 - **compute x effect** -- the [[explanation/index|capability typology]]: *compute* is
   `deterministic` / `llm` / `hybrid`; *effect* is `read-only` / `mutating`.
 - **Universal contract** -- every engine supports `--json` (machine-readable output) and meaningful
@@ -49,7 +49,7 @@ tags:
   `skipped`; an engine whose required config is absent is **skipped, never silently counted as a pass**.
   The exit asserts *"an engine errored or a real gate failed"* -- NOT *"the vault is healthy"*: advisory
   engines (taxonomy-inventory, frontmatter-lint) contribute numbers but cannot fail the roll-up. The CI
-  entrypoint for the pre-commit / GitHub-Action adapters. See [ADR-0002](https://github.com/Wombat164/claude-harness/blob/main/docs/adr-0002-doctor-exit-semantics.md).
+  entrypoint for the pre-commit / GitHub-Action adapters. See [ADR-0002](https://github.com/Wombat164/neurokeeper/blob/main/docs/adr-0002-doctor-exit-semantics.md).
 - **Contract:** `--json`, `--check` (exit 1 iff a gating engine failed or any engine errored),
   `--strict` (forwarded to ref-audit).
 - **Env:** the union of the engines it runs (`VAULT_ROOT`; `FRONTMATTER_SCHEMA` / `CLAUDE_MEMORY_DIR`

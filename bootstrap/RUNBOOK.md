@@ -12,12 +12,12 @@ OS-specific part is this bootstrap kit (`bootstrap.sh` for Linux/macOS, `bootstr
 
 ## 1. Toolchain + repos (auto)
 ```bash
-git clone https://github.com/Wombat164/claude-harness        # or copy bootstrap/ across
-cp claude-harness/bootstrap/repos.example.txt claude-harness/bootstrap/repos.txt   # edit: your repo URLs
+git clone https://github.com/Wombat164/neurokeeper        # or copy bootstrap/ across
+cp neurokeeper/bootstrap/repos.example.txt neurokeeper/bootstrap/repos.txt   # edit: your repo URLs
 # Linux / macOS:
-bash claude-harness/bootstrap/bootstrap.sh claude-harness/bootstrap/repos.txt ~/Projects
+bash neurokeeper/bootstrap/bootstrap.sh neurokeeper/bootstrap/repos.txt ~/Projects
 # Windows:
-pwsh -File claude-harness/bootstrap/bootstrap.ps1 -Root ~/Projects
+pwsh -File neurokeeper/bootstrap/bootstrap.ps1 -Root ~/Projects
 ```
 Installs the headless toolchain (see `tools-manifest.md`), Claude Code, pyyaml; clones every repo in
 `repos.txt`. Re-open the shell so PATH picks up Node/Python.
@@ -58,8 +58,8 @@ incident), **Frontmatter Smith**, **Git** (mobile). Bases + Properties are core.
 
 ## 6. Install the harness (manual, in Claude Code)
 ```
-/plugin marketplace add https://github.com/Wombat164/claude-harness
-/plugin install claude-harness
+/plugin marketplace add https://github.com/Wombat164/neurokeeper
+/plugin install neurokeeper
 ```
 Set env (per OS): `VAULT_ROOT`, `CLAUDE_MEMORY_DIR`, `FRONTMATTER_SCHEMA`, `VAULT_SCAN_EXCLUDE`,
 `VAULT_NORENAME_ZONES` (see `config.example/`). Export in `~/.bashrc` (Linux) / `~/.zshrc` (macOS); on Windows set user env vars.

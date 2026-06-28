@@ -1,6 +1,6 @@
 ---
 title: How-to guides
-description: Task-oriented recipes for getting specific jobs done with claude-harness.
+description: Task-oriented recipes for getting specific jobs done with neurokeeper.
 tags:
   - how-to
 ---
@@ -28,8 +28,8 @@ root) and converge them on a single canonical spelling.
 1. Point the engine at your vault and run it read-only to see the proposed merge groups:
    ```bash
    export VAULT_ROOT="/path/to/your/notes"
-   claude-harness tag-reconcile            # proposal only -- writes nothing
-   claude-harness tag-reconcile --json     # same proposal, machine-readable
+   neurokeeper tag-reconcile            # proposal only -- writes nothing
+   neurokeeper tag-reconcile --json     # same proposal, machine-readable
    ```
 2. Review the groups. The engine **detects and proposes**; it does not decide for you. Genuine synonyms
    (two different words meaning the same thing) are intentionally out of scope -- supply those yourself.
@@ -38,7 +38,7 @@ root) and converge them on a single canonical spelling.
    `--apply` is a guarded fallback for bulk runs:
    ```bash
    # close your notes app first, then:
-   claude-harness tag-reconcile --apply
+   neurokeeper tag-reconcile --apply
    ```
 4. Review `git diff`, then commit. The commit *is* the audit record.
 
@@ -52,9 +52,9 @@ multi-metric score) and an evidence-backed consolidation proposal.
 1. Tell the engine where the memory store lives, then run the deterministic analyzer (read-only):
    ```bash
    export CLAUDE_MEMORY_DIR="~/.claude/memory"
-   claude-harness memory-consolidate            # human-readable report
-   claude-harness memory-consolidate --json     # machine-readable
-   claude-harness memory-consolidate --terse    # one-line health summary (good for a session hook)
+   neurokeeper memory-consolidate            # human-readable report
+   neurokeeper memory-consolidate --json     # machine-readable
+   neurokeeper memory-consolidate --terse    # one-line health summary (good for a session hook)
    ```
 2. Read the proposal. Every number is computed from the real filesystem, so it is reproducible and
    cannot be fabricated -- this is the whole point of pushing the counting into an engine.
@@ -84,13 +84,13 @@ off-vocabulary values.
    (Windows PowerShell: `$env:FRONTMATTER_SCHEMA = "C:\path\to\my-frontmatter-schema.yaml"`.)
 2. Lint read-only to see off-vocab values, missing axes, and unknown fields:
    ```bash
-   claude-harness frontmatter-lint            # human report
-   claude-harness frontmatter-lint --json     # machine-readable
+   neurokeeper frontmatter-lint            # human report
+   neurokeeper frontmatter-lint --json     # machine-readable
    ```
 3. Reconcile (mutating) -- dry-run first, then apply with your notes app closed:
    ```bash
-   claude-harness frontmatter-fix             # dry-run -- writes nothing
-   claude-harness frontmatter-fix --apply     # apply (close your notes app first)
+   neurokeeper frontmatter-fix             # dry-run -- writes nothing
+   neurokeeper frontmatter-fix --apply     # apply (close your notes app first)
    ```
 4. Review `git diff`, then commit. The commit *is* the audit record.
 
@@ -109,8 +109,8 @@ Read-only -- nothing is changed.
 1. Point it at your vault and run it:
    ```bash
    export VAULT_ROOT="/path/to/your/notes"
-   claude-harness ref-audit            # human report
-   claude-harness ref-audit --json     # machine-readable
+   neurokeeper ref-audit            # human report
+   neurokeeper ref-audit --json     # machine-readable
    ```
 2. Read the report. **Unresolved wikilinks are informational** -- in Obsidian a `[[link]]` to a
    not-yet-created note is a legitimate forward-reference. Only broken `.canvas`/`.base` refs (a board or
@@ -118,8 +118,8 @@ Read-only -- nothing is changed.
    review but not gated.
 3. Gate it in CI or a pre-commit hook:
    ```bash
-   claude-harness ref-audit --check            # exit 1 only on broken canvas/base refs
-   claude-harness ref-audit --check --strict   # also fail on unresolved links (for strict vaults)
+   neurokeeper ref-audit --check            # exit 1 only on broken canvas/base refs
+   neurokeeper ref-audit --check --strict   # also fail on unresolved links (for strict vaults)
    ```
 
 ---
@@ -131,8 +131,8 @@ Read-only -- nothing is changed.
 1. Run it (read-only):
    ```bash
    export VAULT_ROOT="/path/to/your/notes"
-   claude-harness doctor            # consolidated report
-   claude-harness doctor --json     # machine-readable
+   neurokeeper doctor            # consolidated report
+   neurokeeper doctor --json     # machine-readable
    ```
 2. Read the tri-state. Each engine is `ok`, `fail`, or `skipped`. **`skipped` means its config is not set**
    (e.g. no `FRONTMATTER_SCHEMA`, no `CLAUDE_MEMORY_DIR`) -- it is *not* counted as a pass. The roll-up exit
@@ -140,8 +140,8 @@ Read-only -- nothing is changed.
    (taxonomy-inventory, frontmatter-lint) contribute numbers but cannot fail it.
 3. Gate CI on it:
    ```bash
-   claude-harness doctor --check            # exit 1 iff a gating engine failed or any engine errored
-   claude-harness doctor --check --strict   # also fail on unresolved links (forwarded to ref-audit)
+   neurokeeper doctor --check            # exit 1 iff a gating engine failed or any engine errored
+   neurokeeper doctor --check --strict   # also fail on unresolved links (forwarded to ref-audit)
    ```
    Set `FRONTMATTER_SCHEMA` / `CLAUDE_MEMORY_DIR` to bring those engines into the gate; leave them unset to skip.
 
@@ -149,24 +149,24 @@ Read-only -- nothing is changed.
 
 ## Gate a vault repo in CI (pre-commit + GitHub Action)
 
-**Goal:** fail a commit / PR when the vault has real reference defects -- composing claude-harness with the
+**Goal:** fail a commit / PR when the vault has real reference defects -- composing neurokeeper with the
 existing markdown ecosystem instead of duplicating it.
 
 1. **pre-commit** -- in your vault repo's `.pre-commit-config.yaml`:
    ```yaml
    repos:
-     - repo: https://github.com/Wombat164/claude-harness
-       rev: v0.2.0
-       hooks: [{ id: claude-harness-doctor }]   # or: claude-harness-ref-audit
+     - repo: https://github.com/Wombat164/neurokeeper
+       rev: v0.3.0
+       hooks: [{ id: neurokeeper-doctor }]   # or: neurokeeper-ref-audit
    ```
    pre-commit installs the package in an isolated venv and runs the CLI against the repo root.
 2. **GitHub Action** -- compose the commoditized checks (style, external links) with the vault-graph-aware
-   gate claude-harness uniquely provides:
+   gate neurokeeper uniquely provides:
    ```yaml
    - uses: actions/checkout@v4
-   - uses: DavidAnson/markdownlint-cli2-action@v16    # markdown style (not claude-harness's job)
-   - uses: lycheeverse/lychee-action@v2               # external link existence (not claude-harness's job)
-   - uses: Wombat164/claude-harness@v0.2.0            # broken wikilinks/.canvas/.base, orphans, health
+   - uses: DavidAnson/markdownlint-cli2-action@v16    # markdown style (not neurokeeper's job)
+   - uses: lycheeverse/lychee-action@v2               # external link existence (not neurokeeper's job)
+   - uses: Wombat164/neurokeeper@v0.3.0            # broken wikilinks/.canvas/.base, orphans, health
      with: { vault-path: ".", engine: "doctor", strict: "false" }
    ```
 3. Understand what fails it. The exit code follows the doctor contract: broken `.canvas`/`.base` refs or an
@@ -174,7 +174,7 @@ existing markdown ecosystem instead of duplicating it.
    `frontmatter-schema` / `memory-dir` inputs to widen the gate. Full guide: `docs/ci-adapters.md`.
 
 > [!tip] Try it on the bundled example vault
-> `examples/vault/` is a tiny synthetic vault; `VAULT_ROOT=examples/vault claude-harness doctor` shows a
+> `examples/vault/` is a tiny synthetic vault; `VAULT_ROOT=examples/vault neurokeeper doctor` shows a
 > clean run (and is the fixture the project's own CI smoke-tests).
 
 ---
@@ -190,7 +190,7 @@ cost ~nothing -- without changing your default `claude`.
    `docs/two-lane-model-handoff.md`.
 2. Configure the cheap lane (copy the example; never commit a real internal endpoint):
    ```bash
-   cp config.example/cheap-lane.env.example ~/.config/claude-harness/cheap-lane.env   # then edit
+   cp config.example/cheap-lane.env.example ~/.config/neurokeeper/cheap-lane.env   # then edit
    # CLAUDE_CHEAP_BASE_URL=http://your-host:8000  |  CLAUDE_CHEAP_MODEL=...  |  CLAUDE_CHEAP_TOKEN=local
    ```
 3. Run cheap work through the wrapper -- it sets `ANTHROPIC_BASE_URL` to your endpoint **for that
@@ -224,8 +224,8 @@ cost ~nothing -- without changing your default `claude`.
    discoverable.
 5. **Regenerate the registry** so the catalog reflects the new engine:
    ```bash
-   claude-harness registry-generate            # preview
-   claude-harness registry-generate --write     # write the registry doc
+   neurokeeper registry-generate            # preview
+   neurokeeper registry-generate --write     # write the registry doc
    ```
 6. **Document it in the docs site.** Any user-facing capability must land in the wiki, not just the
    README -- add a [Reference](../reference/) catalog entry and a How-to recipe. Docs that lag the tool

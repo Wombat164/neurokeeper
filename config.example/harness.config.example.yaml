@@ -1,4 +1,4 @@
-# claude-harness -- example consumer config (L2). Copy to your private config repo / .claude/config/
+# neurokeeper -- example consumer config (L2). Copy to your private config repo / .claude/config/
 # and fill with YOUR values. The harness (L1a) ships SCHEMAS + examples only; never real config.
 
 # Where the file-based memory store lives (engines read this via CLAUDE_MEMORY_DIR).

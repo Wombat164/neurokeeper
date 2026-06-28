@@ -1,4 +1,4 @@
-# Deploy the claude-harness docs site (Quartz v4) to GitHub Pages.
+# Deploy the neurokeeper docs site (Quartz v4) to GitHub Pages.
 #
 # Verified against the official Quartz v4 GitHub Pages recipe:
 #   https://github.com/jackyzha0/quartz/blob/v4/docs/hosting.md   (action versions, permissions,

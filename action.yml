@@ -1,4 +1,4 @@
-name: "claude-harness vault check"
+name: "neurokeeper vault check"
 description: "Gate a notes / Obsidian vault on deterministic reference-integrity + health checks (doctor / ref-audit)."
 branding:
   icon: "check-circle"
@@ -30,7 +30,7 @@ runs:
     - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
       with:
         python-version: "3.13"
-    - name: Install claude-harness
+    - name: Install neurokeeper
       shell: bash
       run: pip install "${{ github.action_path }}"
     - name: Run check
@@ -43,5 +43,5 @@ runs:
         set -euo pipefail
         args="--check"
         [ "${{ inputs.strict }}" = "true" ] && args="$args --strict"
-        echo "running: claude-harness ${{ inputs.engine }} $args  (VAULT_ROOT=${{ inputs.vault-path }})"
-        claude-harness "${{ inputs.engine }}" $args
+        echo "running: neurokeeper ${{ inputs.engine }} $args  (VAULT_ROOT=${{ inputs.vault-path }})"
+        neurokeeper "${{ inputs.engine }}" $args

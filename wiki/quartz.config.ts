@@ -1,4 +1,4 @@
-// quartz.config.ts -- Quartz v4 configuration for the claude-harness documentation site.
+// quartz.config.ts -- Quartz v4 configuration for the neurokeeper documentation site.
 //
 // Verified against the official Quartz v4 docs + the canonical v4 branch (June 2026):
 //   - Configuration reference:  https://quartz.jzhao.xyz/configuration
@@ -19,11 +19,11 @@ import { QuartzConfig } from "./quartz/cfg"
 import * as Plugin from "./quartz/plugins"
 
 /**
- * Quartz 4 Configuration -- claude-harness
+ * Quartz 4 Configuration -- neurokeeper
  */
 const config: QuartzConfig = {
   configuration: {
-    pageTitle: "claude-harness",
+    pageTitle: "neurokeeper",
     enableSPA: true,
     enablePopovers: true,
     // No third-party analytics by default (privacy-friendly for an OSS docs site).
@@ -32,7 +32,7 @@ const config: QuartzConfig = {
     locale: "en-US",
     // PLACEHOLDER -- replace with your GitHub Pages URL (host/path, no protocol, no trailing slash).
     // Required for sitemap + RSS absolute URLs and for correct cross-page links once deployed.
-    baseUrl: "wombat164.github.io/claude-harness",
+    baseUrl: "wombat164.github.io/neurokeeper",
     ignorePatterns: ["private", "templates", ".obsidian"],
     defaultDateType: "modified",   // Quartz v4 requires this (created | modified | published)
     theme: {

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# claude-harness -- cross-platform CI/test for bootstrap.sh (Linux + macOS, co-equal).
+# neurokeeper -- cross-platform CI/test for bootstrap.sh (Linux + macOS, co-equal).
 #
 # NON-INTERACTIVE. Designed for a CLEAN / DISPOSABLE environment: this exercises
 # bootstrap.sh for real, which installs system packages via sudo (apt/dnf/pacman/
@@ -34,7 +34,7 @@ warn() { ROWS+=("WARN|$1|${2:-}"); }
 ver()  { "$@" 2>&1 | head -n 1; }
 
 # ---- temp workspace + cleanup ------------------------------------------------
-WORKDIR="$(mktemp -d "${TMPDIR:-/tmp}/claude-harness-test.XXXXXX")"
+WORKDIR="$(mktemp -d "${TMPDIR:-/tmp}/neurokeeper-test.XXXXXX")"
 cleanup() { [ -n "${WORKDIR:-}" ] && rm -rf "$WORKDIR"; }
 trap cleanup EXIT INT TERM
 
@@ -48,7 +48,7 @@ cat > "$REPOS_FILE" <<EOF
 $REPO_URL
 EOF
 
-echo "== claude-harness bootstrap.sh test =="
+echo "== neurokeeper bootstrap.sh test =="
 echo "  bootstrap : $BOOTSTRAP_SH"
 echo "  workdir   : $WORKDIR"
 echo "  repos     : $REPOS_FILE"

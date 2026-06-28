@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# claude-harness plugin bin wrapper -- callable as a bare `claude-harness` command when this repo is
+# neurokeeper plugin bin wrapper -- callable as a bare `neurokeeper` command when this repo is
 # installed as a Claude Code plugin (bin/ is added to PATH). ${CLAUDE_PLUGIN_ROOT} is set by Claude Code
 # to the plugin's cache dir -- never hardcode a path. cli.py finds the engines under the plugin root.
 set -euo pipefail
 export PYTHONPATH="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}:${PYTHONPATH:-}"
-exec python3 -m claude_harness.cli "$@"
+exec python3 -m neurokeeper.cli "$@"

@@ -1,7 +1,7 @@
 #!/usr/bin/env pwsh
 #Requires -Version 7
 <#
-  claude-harness -- cross-platform CI/test for bootstrap.ps1 (Windows).
+  neurokeeper -- cross-platform CI/test for bootstrap.ps1 (Windows).
 
   NON-INTERACTIVE. Designed for a CLEAN / DISPOSABLE environment: this exercises
   bootstrap.ps1 for real, which installs system packages via winget and `npm i -g`.
@@ -39,7 +39,7 @@ function Ver($exe, [string[]]$cmdArgs) {
 }
 
 # ---- temp workspace ----------------------------------------------------------
-$work = Join-Path ([System.IO.Path]::GetTempPath()) ("claude-harness-test-" + [guid]::NewGuid().ToString('N'))
+$work = Join-Path ([System.IO.Path]::GetTempPath()) ("neurokeeper-test-" + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force -Path $work | Out-Null
 $reposFile = Join-Path $work 'repos.txt'
 $root      = Join-Path $work 'root'
@@ -51,7 +51,7 @@ $repoName  = 'Hello-World'
   $repoUrl
 ) | Set-Content -Path $reposFile -Encoding utf8
 
-Write-Host "== claude-harness bootstrap.ps1 test =="
+Write-Host "== neurokeeper bootstrap.ps1 test =="
 Write-Host "  bootstrap : $BootstrapPs1"
 Write-Host "  workdir   : $work"
 Write-Host "  repos     : $reposFile"

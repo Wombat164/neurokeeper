@@ -1,16 +1,16 @@
-# claude-harness
+# neurokeeper
 
-[![CI](https://github.com/Wombat164/claude-harness/actions/workflows/test.yml/badge.svg)](https://github.com/Wombat164/claude-harness/actions/workflows/test.yml)
-[![release](https://img.shields.io/github/v/release/Wombat164/claude-harness)](https://github.com/Wombat164/claude-harness/releases)
-[![license](https://img.shields.io/github/license/Wombat164/claude-harness)](LICENSE)
-[![docs](https://img.shields.io/badge/docs-wombat164.github.io-blue)](https://wombat164.github.io/claude-harness/)
+[![CI](https://github.com/Wombat164/neurokeeper/actions/workflows/test.yml/badge.svg)](https://github.com/Wombat164/neurokeeper/actions/workflows/test.yml)
+[![release](https://img.shields.io/github/v/release/Wombat164/neurokeeper)](https://github.com/Wombat164/neurokeeper/releases)
+[![license](https://img.shields.io/github/license/Wombat164/neurokeeper)](LICENSE)
+[![docs](https://img.shields.io/badge/docs-wombat164.github.io-blue)](https://wombat164.github.io/neurokeeper/)
 
 A **portable-core** harness for agentic coding/knowledge work. The load-bearing logic lives in
 harness-agnostic **engines** (deterministic scripts) + **prompt templates** + **versioned contracts**;
 a thin **adapter** binds them to a specific runtime. The Claude Code plugin is *one* adapter — the same
 core works from an MCP server, a plain CLI, or any other LLM harness.
 
-> Status: **0.2.2 (alpha).** Licensed **MIT** (see [`LICENSE`](LICENSE)).
+> Status: **0.3.0 (alpha).** Licensed **MIT** (see [`LICENSE`](LICENSE)).
 
 ## Why
 "Skills" (and plugins, hooks) are runtime-specific and not portable. Putting the real logic in **engines
@@ -41,23 +41,23 @@ Each engine carries a metadata header (`@capability/@compute/@effect/@portabilit
 
 ## Install
 
-**As a Claude Code plugin** (engines + skills + hooks; `bin/claude-harness` on PATH):
+**As a Claude Code plugin** (engines + skills + hooks; `bin/neurokeeper` on PATH):
 ```
-/plugin marketplace add https://github.com/Wombat164/claude-harness
-/plugin install claude-harness
+/plugin marketplace add https://github.com/Wombat164/neurokeeper
+/plugin install neurokeeper
 ```
 
 **As a standalone CLI** (the engines, runnable anywhere / in CI -- no Claude Code needed):
 ```
-pipx install git+https://github.com/Wombat164/claude-harness   # from GitHub
+pipx install git+https://github.com/Wombat164/neurokeeper   # from GitHub
 pip install -e ".[dev]"                                         # from a checkout (editable, with test/lint deps)
 ```
-(The bare PyPI name `claude-harness` is taken by an unrelated project, so install from GitHub; a future
+(The bare PyPI name `neurokeeper` is taken by an unrelated project, so install from GitHub; a future
 PyPI release would use a distinct distribution name.)
 Then run any engine via the dispatcher:
 ```
-claude-harness <engine> [args]     # e.g.  claude-harness taxonomy-inventory --json
-claude-harness --list              # list engines
+neurokeeper <engine> [args]     # e.g.  neurokeeper taxonomy-inventory --json
+neurokeeper --list              # list engines
 ```
 Either way, set `CLAUDE_MEMORY_DIR` (and optional `VAULT_*`) per `config.example/`. The same engines back
 all three faces (plugin / CLI / direct `python scripts/<engine>.py`) -- one codebase, no fork.
@@ -86,19 +86,19 @@ default, mutating only with `--apply` behind the Obsidian-running guard; git is 
 Schema-as-code lives in your config; `config.example/frontmatter-schema.example.yaml` is a worked example.
 
 ## Gate a vault in CI (pre-commit + GitHub Action)
-The same engines run as a commit/CI gate. claude-harness ships a `.pre-commit-hooks.yaml` and a composite
+The same engines run as a commit/CI gate. neurokeeper ships a `.pre-commit-hooks.yaml` and a composite
 `action.yml`; both run the **vault-graph-aware** checks it uniquely owns and **compose with** the ecosystem
 (markdownlint / lychee / check-jsonschema) for the commoditized ones.
 ```yaml
 # .pre-commit-config.yaml (in your vault repo)
 repos:
-  - repo: https://github.com/Wombat164/claude-harness
-    rev: v0.2.0
-    hooks: [{ id: claude-harness-doctor }]
+  - repo: https://github.com/Wombat164/neurokeeper
+    rev: v0.3.0
+    hooks: [{ id: neurokeeper-doctor }]
 ```
 ```yaml
 # a GitHub workflow step
-- uses: Wombat164/claude-harness@v0.2.0
+- uses: Wombat164/neurokeeper@v0.3.0
   with: { vault-path: ".", engine: "doctor", strict: "false" }
 ```
 Exit semantics follow [ADR-0002](docs/adr-0002-doctor-exit-semantics.md) (fails on broken `.canvas`/`.base`
@@ -132,7 +132,7 @@ measure-before-you-trust plan are in [`docs/two-lane-model-handoff.md`](docs/two
 
 ## Related projects
 
-claude-harness builds on a healthy ecosystem; if it doesn't fit, one of these might:
+neurokeeper builds on a healthy ecosystem; if it doesn't fit, one of these might:
 - **[claude-mnemo](https://github.com/jojoprison/claude-mnemo)** — Claude Code plugin: Obsidian-vault memory + a lean `MEMORY.md` index + a `/health` audit (the closest neighbour on the memory side).
 - **[claude-memory-health](https://github.com/alexknowshtml/claude-memory-health)** / **[claude-memory-compiler](https://github.com/coleam00/claude-memory-compiler)** — markdown-memory audit + consolidation.
 - **[obsidian-mcp-server](https://github.com/cyanheads/obsidian-mcp-server)** — MCP tools for Obsidian (tag / frontmatter primitives).

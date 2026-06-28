@@ -7,7 +7,7 @@ tags:
 ---
 
 > [!note] This is explanation (understanding-oriented)
-> Discursive background on *why* claude-harness is shaped the way it is. It does not give steps (see
+> Discursive background on *why* neurokeeper is shaped the way it is. It does not give steps (see
 > [How-to guides](../how-to/)) or exhaustive field lists (see [Reference](../reference/)).
 
 ## The problem: runtime-specific logic is not portable

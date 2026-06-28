@@ -1,12 +1,12 @@
 {
-  "name": "claude-harness",
-  "owner": { "name": "claude-harness contributors" },
+  "name": "neurokeeper",
+  "owner": { "name": "neurokeeper contributors" },
   "metadata": {
     "description": "Portable-core harness: deterministic vault-hygiene engines + memory-audit + thin adapters."
   },
   "plugins": [
     {
-      "name": "claude-harness",
+      "name": "neurokeeper",
       "source": "./",
       "description": "Deterministic Obsidian-vault hygiene engines (tags / frontmatter / taxonomy / link-aware rename / reference-integrity audit) + a deterministic memory-audit + an optional two-lane self-hosted-model handoff. One portable core, runnable as a Claude Code plugin AND a standalone CLI.",
       "category": "knowledge-management",

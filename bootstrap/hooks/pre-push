@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# claude-harness pre-push OPSEC guard.
+# neurokeeper pre-push OPSEC guard.
 #
 # The private dev history may carry sensitive keywords; ONLY the clean release line may reach a PUBLIC
 # (github) remote. This hook refuses a push to github if the OPSEC keyword scan finds anything in the

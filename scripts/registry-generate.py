@@ -30,7 +30,7 @@ import os, re, sys, json
 def _detect_root_and_scan():
     """Locate the tree to scan whether running from a repo/plugin checkout (engines in scripts/) or
     from an installed wheel (engines force-included under the package as _engines/ + _prompts/).
-    Without this, `claude-harness registry-generate` would scan an empty tree after a pipx/wheel install."""
+    Without this, `neurokeeper registry-generate` would scan an empty tree after a pipx/wheel install."""
     if os.environ.get("HARNESS_ROOT"):
         return os.environ["HARNESS_ROOT"], ["scripts", "skills", "prompts", "hooks", "commands",
                                             "_engines", "_prompts"]

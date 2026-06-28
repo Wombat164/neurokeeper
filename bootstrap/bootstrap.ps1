@@ -1,5 +1,5 @@
 #!/usr/bin/env pwsh
-# claude-harness fresh-PC bootstrap (Windows-primary). Idempotent: skips what's already present.
+# neurokeeper fresh-PC bootstrap (Windows-primary). Idempotent: skips what's already present.
 # Installs the headless toolchain, then clones the repos listed in your private repos config.
 # Run:  pwsh -File bootstrap.ps1 [-ReposFile path\to\repos.txt] [-Root C:\Users\<you>\Projects]
 # GUI + auth + Obsidian-plugin steps are MANUAL -- see RUNBOOK.md. Does NOT touch private/sensitive content.
@@ -44,4 +44,4 @@ Write-Host "`n== DONE (automated part). MANUAL steps remain -- see RUNBOOK.md: =
 Write-Host "  - auth:  gh auth login ; glab auth login ; claude (login)"
 Write-Host "  - install Obsidian (winget Obsidian.Obsidian) + community plugins (Tag Wrangler, Linter[configure!], Frontmatter Smith, Git)"
 Write-Host "  - restore Claude memory: clone the memory repo into ~/.claude/projects/<env>/memory ; pull _shared/"
-Write-Host "  - install this harness as a plugin: /plugin marketplace add https://github.com/Wombat164/claude-harness ; /plugin install claude-harness"
+Write-Host "  - install this harness as a plugin: /plugin marketplace add https://github.com/Wombat164/neurokeeper ; /plugin install neurokeeper"

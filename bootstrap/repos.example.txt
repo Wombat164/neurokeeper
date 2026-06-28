@@ -3,7 +3,7 @@
 # Keep this example placeholder-only; the real list is private.
 #
 # https://gitlab.com/<you>/<obsidian-vault>      # the vault repo (carries .claude/ config + content)
-# https://gitlab.com/<you>/claude-harness        # this harness
+# https://gitlab.com/<you>/neurokeeper        # this harness
 # https://gitlab.com/<you>/<memory-repo>         # private Claude memory backup (clone into ~/.claude/.../memory)
 # https://gitlab.com/<you>/<shared-memory>       # cross-env _shared core
 # https://gitlab.com/<you>/<dev-repo-1>

@@ -4,8 +4,8 @@ A tiny, **fully synthetic** Obsidian-style vault used to demo the engines and as
 fixture. Nothing here is real content -- it exists only to exercise the tools. From this directory:
 
 ```bash
-VAULT_ROOT="$(pwd)" claude-harness doctor
-VAULT_ROOT="$(pwd)" claude-harness ref-audit --json
+VAULT_ROOT="$(pwd)" neurokeeper doctor
+VAULT_ROOT="$(pwd)" neurokeeper ref-audit --json
 ```
 
 `doctor --check` exits 0 on this vault. The one unresolved link (`[[future-idea]]` in

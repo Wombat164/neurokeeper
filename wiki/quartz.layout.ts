@@ -1,4 +1,4 @@
-// quartz.layout.ts -- Quartz v4 layout for the claude-harness documentation site.
+// quartz.layout.ts -- Quartz v4 layout for the neurokeeper documentation site.
 //
 // Verified against the official Quartz v4 docs + the canonical v4 branch (June 2026):
 //   - Layout reference:        https://quartz.jzhao.xyz/layout
@@ -20,8 +20,8 @@ export const sharedPageComponents: SharedLayout = {
   afterBody: [],
   footer: Component.Footer({
     links: {
-      // PLACEHOLDER -- replace with the public claude-harness repo URL once published.
-      GitHub: "https://github.com/Wombat164/claude-harness",
+      // PLACEHOLDER -- replace with the public neurokeeper repo URL once published.
+      GitHub: "https://github.com/Wombat164/neurokeeper",
       "Built with Quartz": "https://quartz.jzhao.xyz/",
     },
   }),

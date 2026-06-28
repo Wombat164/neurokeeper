@@ -1,11 +1,11 @@
 ---
-title: claude-harness
+title: neurokeeper
 description: A portable-core harness for agentic coding and knowledge work.
 tags:
   - overview
 ---
 
-**claude-harness** is a portable-core harness for agentic coding and knowledge work. The load-bearing
+**neurokeeper** is a portable-core harness for agentic coding and knowledge work. The load-bearing
 logic lives in harness-agnostic **engines** (deterministic scripts) plus **prompt templates** plus
 **versioned contracts**; a thin **adapter** binds them to a specific runtime. The Claude Code plugin is
 *one* adapter -- the same core runs from a plain CLI, from CI, or from any other LLM harness.

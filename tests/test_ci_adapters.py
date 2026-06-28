@@ -13,10 +13,10 @@ def test_precommit_hooks_valid():
     with open(os.path.join(ROOT, ".pre-commit-hooks.yaml"), encoding="utf-8") as fh:
         hooks = yaml.safe_load(fh)
     ids = {h["id"] for h in hooks}
-    assert {"claude-harness-doctor", "claude-harness-ref-audit"} <= ids
+    assert {"neurokeeper-doctor", "neurokeeper-ref-audit"} <= ids
     for h in hooks:
         assert h["language"] == "python"
-        assert h["entry"].startswith("claude-harness ")
+        assert h["entry"].startswith("neurokeeper ")
         assert h["pass_filenames"] is False
 
 
@@ -28,4 +28,4 @@ def test_action_yml_valid():
         assert inp in action["inputs"]
     # the action must actually invoke the CLI with --check
     run_steps = " ".join(s.get("run", "") for s in action["runs"]["steps"])
-    assert "claude-harness" in run_steps and "--check" in run_steps
+    assert "neurokeeper" in run_steps and "--check" in run_steps

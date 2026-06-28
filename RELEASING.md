@@ -1,4 +1,4 @@
-# Releasing claude-harness
+# Releasing neurokeeper
 
 ## Pre-publish checks
 
@@ -21,19 +21,19 @@ This publishes the GitHub Release. CI (`ci`) runs on the tag; the wiki redeploys
 
 ## Publish to PyPI (one-time setup, then automatic)
 
-> [!warning] The bare name `claude-harness` is TAKEN on PyPI
-> An unrelated project already owns `pypi.org/project/claude-harness`. Publishing as-is will fail. Before
+> [!warning] The bare name `neurokeeper` is TAKEN on PyPI
+> An unrelated project already owns `pypi.org/project/neurokeeper`. Publishing as-is will fail. Before
 > enabling PyPI, rename the distribution in `pyproject.toml` (`[project] name`) to a free name (e.g.
-> `obsidian-claude-harness`) -- the import package, the `claude-harness` console command, the GitHub repo,
+> `obsidian-neurokeeper`) -- the import package, the `neurokeeper` console command, the GitHub repo,
 > and the Claude Code plugin name can all stay the same; only the PyPI *distribution* name must change.
-> Until then, distribute via the plugin marketplace + `pipx install git+https://github.com/Wombat164/claude-harness`.
+> Until then, distribute via the plugin marketplace + `pipx install git+https://github.com/Wombat164/neurokeeper`.
 
 PyPI publishing uses **Trusted Publishing (OIDC)** -- no API tokens are stored. It is **gated off by
 default** so releases stay green until you opt in. To enable:
 
 1. **Configure the Trusted Publisher on PyPI** (your PyPI account; one-time):
    - PyPI -> your project (or "pending publisher" if the project doesn't exist yet) -> Publishing ->
-     Add a GitHub publisher: owner `Wombat164`, repo `claude-harness`, workflow `release.yml`,
+     Add a GitHub publisher: owner `Wombat164`, repo `neurokeeper`, workflow `release.yml`,
      environment `pypi`.
    - Docs: https://docs.pypi.org/trusted-publishers/
 2. **Create + protect the `pypi` environment FIRST (precondition, not optional):** Settings ->
@@ -56,5 +56,5 @@ redeploys automatically on pushes that touch `wiki/**`. Manual: `gh workflow run
 
 ## Versioning
 
-Bump `version` in `pyproject.toml`, `.claude-plugin/plugin.json`, and `claude_harness/__init__.py`
+Bump `version` in `pyproject.toml`, `.claude-plugin/plugin.json`, and `neurokeeper/__init__.py`
 together (they must match), then tag `vX.Y.Z`.

@@ -1,4 +1,4 @@
-# claude-harness -- dev/test dependencies (single source of truth for CI + contributors).
+# neurokeeper -- dev/test dependencies (single source of truth for CI + contributors).
 # Runtime needs only the stdlib + pyyaml; these are for testing/linting the engines.
 pyyaml>=6.0
 pytest>=8.0

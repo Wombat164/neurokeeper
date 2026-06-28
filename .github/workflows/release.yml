@@ -1,4 +1,4 @@
-# claude-harness -- PyPI release via Trusted Publishing (OIDC, no stored tokens).
+# neurokeeper -- PyPI release via Trusted Publishing (OIDC, no stored tokens).
 # Runs on a published GitHub Release. Requires a configured PyPI Trusted Publisher for this repo
 # (PyPI project settings) so the OIDC handshake can mint a short-lived upload token.
 name: release

@@ -13,7 +13,7 @@
 """check-release.py -- deterministic pre-release gate. Exit 1 on any violation; run in CI.
 
 Asserts (no auth, no network -- unlike `claude plugin validate`):
-  1. version sync   : pyproject.toml == claude_harness/__init__.py == .claude-plugin/plugin.json
+  1. version sync   : pyproject.toml == neurokeeper/__init__.py == .claude-plugin/plugin.json
   2. plugin.json    : kebab-case name, non-empty version + description
   3. marketplace.json: kebab-case name, owner.name, >=1 plugin each with a kebab name + a source
 
@@ -41,7 +41,7 @@ def main():
     try:
         vers = {
             "pyproject.toml": re.search(r'(?m)^version\s*=\s*"([^"]+)"', _read("pyproject.toml")).group(1),
-            "__init__.py": re.search(r'__version__\s*=\s*"([^"]+)"', _read("claude_harness/__init__.py")).group(1),
+            "__init__.py": re.search(r'__version__\s*=\s*"([^"]+)"', _read("neurokeeper/__init__.py")).group(1),
             "plugin.json": json.loads(_read(".claude-plugin/plugin.json")).get("version"),
         }
     except (OSError, AttributeError) as e:

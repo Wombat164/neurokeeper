@@ -67,7 +67,7 @@ The exact model/serving is **your private config** -- it never belongs in this p
 ```
 # one-off:
 claude-cheap -p "write a conventional-commit message for this staged diff"
-# config: env or ~/.config/claude-harness/cheap-lane.env  (see config.example/cheap-lane.env.example)
+# config: env or ~/.config/neurokeeper/cheap-lane.env  (see config.example/cheap-lane.env.example)
 ```
 `claude-cheap` reads `CLAUDE_CHEAP_BASE_URL` / `CLAUDE_CHEAP_MODEL` / `CLAUDE_CHEAP_TOKEN`, exports the
 Anthropic env vars for that invocation only, and `exec`s `claude`. Your default `claude` is untouched.

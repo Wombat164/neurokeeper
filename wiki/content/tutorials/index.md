@@ -1,6 +1,6 @@
 ---
 title: Getting started
-description: Install claude-harness and run your first engine -- as a CLI and as a Claude Code plugin.
+description: Install neurokeeper and run your first engine -- as a CLI and as a Claude Code plugin.
 tags:
   - tutorial
   - getting-started
@@ -11,7 +11,7 @@ tags:
 > not a complete reference. When you need to look something up, see [Reference](../reference/); when you
 > have a specific task in mind, see [How-to guides](../how-to/).
 
-By the end you will have installed claude-harness, listed its engines, and run a read-only engine that
+By the end you will have installed neurokeeper, listed its engines, and run a read-only engine that
 produces a JSON report -- without touching any of your files.
 
 ## Prerequisites
@@ -26,21 +26,21 @@ Either install the published package, or work from a checkout:
 
 ```bash
 # from a checkout (editable, with test/lint deps):
-git clone <claude-harness-repo-url>
-cd claude-harness
+git clone <neurokeeper-repo-url>
+cd neurokeeper
 pip install -e ".[dev]"
 
 # or, once published:
-pipx install claude-harness        # or: uv tool install claude-harness
+pipx install neurokeeper        # or: uv tool install neurokeeper
 ```
 
-This puts a single console command, `claude-harness`, on your PATH. That command is a **dispatcher**: it
+This puts a single console command, `neurokeeper`, on your PATH. That command is a **dispatcher**: it
 runs the same engine files the plugin and CI use -- one codebase, no fork.
 
 ## Step 2 -- List the engines
 
 ```bash
-claude-harness --list
+neurokeeper --list
 ```
 
 You should see the available engines (for example `taxonomy-inventory`, `frontmatter-lint`,
@@ -53,13 +53,13 @@ Every engine defaults to **report-only**: it never writes anything unless you ex
 Run the capability registry generator, which just prints the catalog of engines as markdown:
 
 ```bash
-claude-harness registry-generate
+neurokeeper registry-generate
 ```
 
 Now ask an engine for machine-readable output -- the `--json` flag is part of every engine's contract:
 
 ```bash
-claude-harness registry-generate --json
+neurokeeper registry-generate --json
 ```
 
 You just exercised the core contract: a deterministic engine, a `--json` output, and zero side effects.
@@ -71,7 +71,7 @@ against any vault:
 
 ```bash
 export VAULT_ROOT="/path/to/your/notes"     # Windows PowerShell: $env:VAULT_ROOT = "C:\path\to\notes"
-claude-harness taxonomy-inventory --json
+neurokeeper taxonomy-inventory --json
 ```
 
 This produces a read-only inventory of naming / tags / frontmatter. Still nothing is written -- inventory
@@ -94,8 +94,8 @@ The CLI you just used is one face of the core. The Claude Code plugin is another
 exposed as skills and hooks:
 
 ```text
-/plugin marketplace add https://github.com/Wombat164/claude-harness
-/plugin install claude-harness
+/plugin marketplace add https://github.com/Wombat164/neurokeeper
+/plugin install neurokeeper
 ```
 
 Inside Claude Code you can then invoke the bundled capability (for example the memory-audit skill), which
@@ -103,7 +103,7 @@ runs the identical engine and adds an LLM-judgment step on top of the engine's o
 
 ## What you learned
 
-- claude-harness installs as **one dispatcher CLI** that runs deterministic engines.
+- neurokeeper installs as **one dispatcher CLI** that runs deterministic engines.
 - Every engine speaks the same **contract**: `--json` output, exit codes, **report-by-default**.
 - The **same engines** back the CLI, CI, and the Claude Code plugin -- different adapters, one core.
 

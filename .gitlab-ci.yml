@@ -1,4 +1,4 @@
-# claude-harness -- GitLab CI.
+# neurokeeper -- GitLab CI.
 # Fast engine tests + lint run on every push. The heavy bootstrap test (installs
 # system packages -> disposable container only) is GATED to scheduled/manual runs.
 
@@ -22,7 +22,7 @@ ruff:
   before_script:
     - pip install --quiet ruff
   script:
-    - ruff check scripts/ tests/ claude_harness/
+    - ruff check scripts/ tests/ neurokeeper/
 
 # ---- secret scan (gitleaks DEFAULT rules; blocking). Pinned + checksum-verified ----
 gitleaks:

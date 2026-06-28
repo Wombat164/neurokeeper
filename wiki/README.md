@@ -1,4 +1,4 @@
-# wiki/ -- claude-harness documentation site (Quartz v4)
+# wiki/ -- neurokeeper documentation site (Quartz v4)
 
 This directory holds the **source of the public documentation site**: the Quartz v4 config and the
 Markdown content, organised by the [Diataxis](https://diataxis.fr/) framework. The site is built with
@@ -40,9 +40,9 @@ cd quartz-site
 npm i
 
 # 2. overlay this repo's config + content (adjust the path to your checkout)
-cp /path/to/claude-harness/wiki/quartz.config.ts ./quartz.config.ts
-cp /path/to/claude-harness/wiki/quartz.layout.ts ./quartz.layout.ts
-rm -rf ./content && cp -r /path/to/claude-harness/wiki/content ./content
+cp /path/to/neurokeeper/wiki/quartz.config.ts ./quartz.config.ts
+cp /path/to/neurokeeper/wiki/quartz.layout.ts ./quartz.layout.ts
+rm -rf ./content && cp -r /path/to/neurokeeper/wiki/content ./content
 
 # 3. build + serve with live reload at http://localhost:8080
 npx quartz build --serve
