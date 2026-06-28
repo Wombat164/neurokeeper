@@ -12,7 +12,7 @@ OS-specific part is this bootstrap kit (`bootstrap.sh` for Linux/macOS, `bootstr
 
 ## 1. Toolchain + repos (auto)
 ```bash
-git clone <harness-url>        # or copy bootstrap/ across
+git clone https://github.com/Wombat164/claude-harness        # or copy bootstrap/ across
 cp claude-harness/bootstrap/repos.example.txt claude-harness/bootstrap/repos.txt   # edit: your repo URLs
 # Linux / macOS:
 bash claude-harness/bootstrap/bootstrap.sh claude-harness/bootstrap/repos.txt ~/Projects
@@ -58,7 +58,7 @@ incident), **Frontmatter Smith**, **Git** (mobile). Bases + Properties are core.
 
 ## 6. Install the harness (manual, in Claude Code)
 ```
-/plugin marketplace add <harness-url>
+/plugin marketplace add https://github.com/Wombat164/claude-harness
 /plugin install claude-harness
 ```
 Set env (per OS): `VAULT_ROOT`, `CLAUDE_MEMORY_DIR`, `FRONTMATTER_SCHEMA`, `VAULT_SCAN_EXCLUDE`,

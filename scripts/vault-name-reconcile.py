@@ -28,13 +28,9 @@ Usage: python scripts/vault-name-reconcile.py [--json] [dedash] [--apply] [--for
 """
 import os, re, sys, json
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _vault_lib import (VAULT, md_files, folder_suffixes, kebabify, DASH,
-                        safe_write, within_vault, VaultWriteError, in_forbidden_zone,
-                        force_utf8_stdout)  # shared core
-try:
-    from _vault_guard import assert_obsidian_closed
-except Exception:
-    def assert_obsidian_closed(force=False): pass
+from _vault_lib import (kebabify, DASH, within_vault, VaultWriteError,   # shared core (transforms + guards)
+                        in_forbidden_zone, force_utf8_stdout)
+from _backend import get_backend   # the 5-seam backend contract: link grammar + store + editor guard
 
 EXCLUDE_RENAME = tuple(x for x in (os.environ.get("VAULT_NORENAME_ZONES") or "").split(",") if x)
 
@@ -44,10 +40,10 @@ def dedash(stem):
 def excluded(rel):
     return any(rel == e or rel.startswith(e + os.sep) for e in EXCLUDE_RENAME)
 
-def build(mode, under=None):
+def build(backend, mode, under=None):
     transform = kebabify if mode == "kebab" else dedash
     renames = []
-    for path, rel in md_files():
+    for path, rel in backend.iter_notes():
         stem = os.path.splitext(os.path.basename(path))[0]
         if rel and (excluded(rel) or in_forbidden_zone(rel)): continue
         if under and not (rel == under or rel.startswith(under + os.sep)): continue   # pilot one folder
@@ -67,7 +63,8 @@ def main():
     args = sys.argv[1:]
     mode = "dedash" if "dedash" in args else "kebab"
     under = args[args.index("--under") + 1] if "--under" in args and args.index("--under") + 1 < len(args) else None
-    renames, collisions = build(mode, under)
+    backend = get_backend()                     # VAULT_BACKEND (default obsidian) -> link grammar + store + guard
+    renames, collisions = build(backend, mode, under)
     dash_n = sum(1 for _, _, stem, _ in renames if DASH.search(stem))
     if "--json" in args:
         print(json.dumps({"mode": mode, "rename_count": len(renames), "has_dash": dash_n,
@@ -87,7 +84,7 @@ def main():
             for (r, n), v in list(collisions.items())[:10]: print(f"  {r}/{n}.md  <=  {v}")
         return
     # --apply : link-aware bulk rename
-    assert_obsidian_closed("--force" in args)
+    backend.assert_safe_to_write("--force" in args)   # editor-write preflight (obsidian: Linter race)
     if not EXCLUDE_RENAME and "--no-exclusions" not in args:
         print("REFUSING --apply: VAULT_NORENAME_ZONES is unset -> EVERY zone (incl. legal/archive/source)\n"
               "would be renamed. Set VAULT_NORENAME_ZONES, or pass --no-exclusions to override.", file=sys.stderr)
@@ -108,23 +105,18 @@ def main():
             plan.append((path, new, False))
         rmap[stem] = new
     if not rmap: print("nothing to rename"); return
-    # path-prefix may ONLY be a REAL vault folder (folder_suffixes), never arbitrary text-before-'/'
-    # (which corrupted links whose TITLE contains '/', e.g. "TCP/IP" -- the 2026-06-27 bug).
-    folders = folder_suffixes(VAULT)
-    PATH = ("(?:" + "|".join(re.escape(f) for f in sorted(folders, key=len, reverse=True)) + ")?") if folders else ""
-    # ONE combined regex (folder-suffix alt + all-stems alt, both longest-first) -> single pass per file.
-    # Lookahead includes '\\' so escaped-pipe links [[stem\|alias]] (common in tables) are rewritten too.
-    stems_alt = "|".join(re.escape(s) for s in sorted(rmap, key=len, reverse=True))
-    big = re.compile(r"(!?\[\[" + PATH + r")(" + stems_alt + r")(?=[\]|#\\])")
+    # LINK seam: the backend builds the rename rewriter (obsidian = the hardened verbatim regex; the
+    # folder-suffix / escaped-pipe / TCP-IP-slash-decoy / clobber hardening now lives in the adapter).
+    rewrite = backend.make_link_rewriter(rmap)
     link_edits = 0
-    for path, rel in md_files():
+    for path, rel in backend.iter_notes():
         if in_forbidden_zone(rel): continue          # VAULT_FORBIDDEN_ZONES: never write these files
-        try: t = open(path, encoding="utf-8", newline="").read()     # newline='' preserves CRLF/LF
+        try: t = backend.read(path)                  # newline='' inside read() preserves CRLF/LF
         except (UnicodeDecodeError, OSError): continue                # skip unreadable (no replace-then-write)
-        nt = big.sub(lambda m: m.group(1) + rmap[m.group(2)], t)
-        if nt != t:
+        nt, changed = rewrite(t)
+        if changed:
             try:
-                safe_write(path, nt); link_edits += 1     # symlink/out-of-vault writes refused
+                backend.write(path, nt); link_edits += 1   # symlink/out-of-vault writes refused (safe_write)
             except VaultWriteError as e:
                 print(f"  skip (guard): {e}", file=sys.stderr)
     renamed = 0
@@ -134,9 +126,9 @@ def main():
         if not within_vault(d): continue             # confine the destination within the vault
         if two_step:                                     # Foo.md -> Foo.tmp-rename~ -> foo.md (case-insensitive FS)
             tmp = os.path.join(d, new + ".tmp-rename~")
-            os.rename(path, tmp); os.rename(tmp, dst); renamed += 1
+            backend.rename(path, tmp); backend.rename(tmp, dst); renamed += 1
         elif not os.path.exists(dst):
-            os.rename(path, dst); renamed += 1
+            backend.rename(path, dst); renamed += 1
     print(f"renamed {renamed} files; rewrote links in {link_edits} files (git diff to review)")
 
 if __name__ == "__main__":

@@ -32,7 +32,7 @@ const config: QuartzConfig = {
     locale: "en-US",
     // PLACEHOLDER -- replace with your GitHub Pages URL (host/path, no protocol, no trailing slash).
     // Required for sitemap + RSS absolute URLs and for correct cross-page links once deployed.
-    baseUrl: "your-org.github.io/claude-harness",
+    baseUrl: "wombat164.github.io/claude-harness",
     ignorePatterns: ["private", "templates", ".obsidian"],
     theme: {
       fontOrigin: "googleFonts",

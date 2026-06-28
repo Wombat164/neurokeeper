@@ -89,7 +89,7 @@ matching test, then destroy the instance.
 ```bash
 # Linux instance (e.g. a throwaway cloud VM, Ubuntu 24.04)
 sudo apt-get update && sudo apt-get install -y git
-git clone <harness-url> claude-harness && cd claude-harness
+git clone https://github.com/Wombat164/claude-harness claude-harness && cd claude-harness
 bash bootstrap/test/test-bootstrap.sh
 # ... then DESTROY the instance.
 ```
@@ -97,14 +97,14 @@ bash bootstrap/test/test-bootstrap.sh
 ```bash
 # macOS instance (e.g. a disposable Apple-silicon macOS instance, or any throwaway Mac)
 # Homebrew + git are the only prerequisites; the test drives the rest.
-git clone <harness-url> claude-harness && cd claude-harness
+git clone https://github.com/Wombat164/claude-harness claude-harness && cd claude-harness
 bash bootstrap/test/test-bootstrap.sh
 # ... then RELEASE / reset the mac instance.
 ```
 
 ```powershell
 # Windows instance (throwaway VM with winget / App Installer available)
-git clone <harness-url> claude-harness; cd claude-harness
+git clone https://github.com/Wombat164/claude-harness claude-harness; cd claude-harness
 pwsh -NoProfile -File bootstrap/test/test-bootstrap.ps1
 # ... then DELETE the VM.
 ```

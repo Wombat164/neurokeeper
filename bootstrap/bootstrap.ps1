@@ -44,4 +44,4 @@ Write-Host "`n== DONE (automated part). MANUAL steps remain -- see RUNBOOK.md: =
 Write-Host "  - auth:  gh auth login ; glab auth login ; claude (login)"
 Write-Host "  - install Obsidian (winget Obsidian.Obsidian) + community plugins (Tag Wrangler, Linter[configure!], Frontmatter Smith, Git)"
 Write-Host "  - restore Claude memory: clone the memory repo into ~/.claude/projects/<env>/memory ; pull _shared/"
-Write-Host "  - install this harness as a plugin: /plugin marketplace add <harness-url> ; /plugin install claude-harness"
+Write-Host "  - install this harness as a plugin: /plugin marketplace add https://github.com/Wombat164/claude-harness ; /plugin install claude-harness"

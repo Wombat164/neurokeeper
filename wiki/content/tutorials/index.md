@@ -94,7 +94,7 @@ The CLI you just used is one face of the core. The Claude Code plugin is another
 exposed as skills and hooks:
 
 ```text
-/plugin marketplace add <harness-url>
+/plugin marketplace add https://github.com/Wombat164/claude-harness
 /plugin install claude-harness
 ```
 

@@ -38,7 +38,7 @@ Each engine carries a metadata header (`@capability/@compute/@effect/@portabilit
 
 **As a Claude Code plugin** (engines + skills + hooks; `bin/claude-harness` on PATH):
 ```
-/plugin marketplace add <harness-url>
+/plugin marketplace add https://github.com/Wombat164/claude-harness
 /plugin install claude-harness
 ```
 
@@ -86,6 +86,30 @@ cross-platform Python; only the bootstrap kit is OS-specific):
 
 Quickstart — Linux: `bash bootstrap/bootstrap.sh bootstrap/repos.txt ~/Projects` · Windows:
 `pwsh -File bootstrap/bootstrap.ps1 -Root ~/Projects` — then follow `RUNBOOK.md`.
+
+## Two-lane model handoff (optional, token-saving)
+
+Keep hard agentic work on your normal Claude lane; route mechanical, high-volume work (commit messages,
+summaries, extraction, classification, formatting) to a **self-hosted** open model via the `claude-cheap`
+wrapper, so cheap work costs ~nothing. It points `ANTHROPIC_BASE_URL` at *your* `/v1/messages`-compatible
+endpoint **for that invocation only** -- your default `claude` is untouched.
+```
+claude-cheap -p "write a conventional-commit message for the staged diff"
+```
+Config via `config.example/cheap-lane.env.example`. The design, the **billing trap** to avoid (a credentialed
+gateway flips you off your subscription onto per-token), the task-class whitelist, the serving recipes
+(vLLM-native / LiteLLM / claude-code-router), the **data-egress/sovereignty** warning, and a
+measure-before-you-trust plan are in [`docs/two-lane-model-handoff.md`](docs/two-lane-model-handoff.md).
+
+## Related projects
+
+claude-harness builds on a healthy ecosystem; if it doesn't fit, one of these might:
+- **[claude-mnemo](https://github.com/jojoprison/claude-mnemo)** — Claude Code plugin: Obsidian-vault memory + a lean `MEMORY.md` index + a `/health` audit (the closest neighbour on the memory side).
+- **[claude-memory-health](https://github.com/alexknowshtml/claude-memory-health)** / **[claude-memory-compiler](https://github.com/coleam00/claude-memory-compiler)** — markdown-memory audit + consolidation.
+- **[obsidian-mcp-server](https://github.com/cyanheads/obsidian-mcp-server)** — MCP tools for Obsidian (tag / frontmatter primitives).
+- **Native Obsidian plugins** — [Tag Wrangler](https://github.com/pjeby/tag-wrangler), [Linter](https://github.com/platers/obsidian-linter), Smart Rename — the GUI "apply" layer this project deliberately defers to (the engines **detect + propose**; these **apply**).
+
+What's different here: the deterministic vault-hygiene **engine suite** (tag / frontmatter / taxonomy / link-aware rename) + memory-audit behind a **portable core** — one codebase running as a Claude Code plugin *and* a standalone CLI/CI tool — rather than any single one of the above.
 
 ## Security & license
 - **License:** MIT — see [`LICENSE`](LICENSE).

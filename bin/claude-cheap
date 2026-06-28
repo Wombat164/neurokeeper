@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# claude-cheap -- the CHEAP LANE of the two-lane model handoff (see docs/two-lane-model-handoff.md).
+# Runs `claude` against a SELF-HOSTED, Anthropic-/v1/messages-compatible endpoint for batch/mechanical
+# work, so your hard agentic work stays on the default subscription lane and cheap work costs ~nothing.
+#
+# Config (env, or a file at $CLAUDE_CHEAP_ENV / ~/.config/claude-harness/cheap-lane.env):
+#   CLAUDE_CHEAP_BASE_URL  -- your endpoint (e.g. http://localhost:8000)   [required]
+#   CLAUDE_CHEAP_MODEL     -- the served model id                          [optional]
+#   CLAUDE_CHEAP_TOKEN     -- any non-empty string for a tokenless local endpoint [default: local]
+#
+# WARNING (billing): exporting ANTHROPIC_BASE_URL + a token routes THIS invocation off your Anthropic
+# subscription. That is intended here (it goes to YOUR box, ~zero marginal cost). Never point it at a paid
+# Anthropic-compatible gateway expecting subscription pricing.
+# WARNING (data egress): everything in this lane goes to CLAUDE_CHEAP_BASE_URL. Keep it on a host you
+# control for sensitive content; never send regulated data / private model weights to a cloud you do not
+# control. Your default `claude` is untouched -- this wrapper only affects the commands you run through it.
+set -euo pipefail
+
+cfg="${CLAUDE_CHEAP_ENV:-$HOME/.config/claude-harness/cheap-lane.env}"
+# shellcheck disable=SC1090
+[ -f "$cfg" ] && . "$cfg"
+
+if [ -z "${CLAUDE_CHEAP_BASE_URL:-}" ]; then
+  echo "claude-cheap: set CLAUDE_CHEAP_BASE_URL (your self-hosted /v1/messages endpoint)." >&2
+  echo "  via env, or $cfg -- see docs/two-lane-model-handoff.md + config.example/cheap-lane.env.example" >&2
+  exit 2
+fi
+
+export ANTHROPIC_BASE_URL="$CLAUDE_CHEAP_BASE_URL"
+export ANTHROPIC_AUTH_TOKEN="${CLAUDE_CHEAP_TOKEN:-local}"
+[ -n "${CLAUDE_CHEAP_MODEL:-}" ] && export ANTHROPIC_MODEL="$CLAUDE_CHEAP_MODEL"
+
+exec claude "$@"

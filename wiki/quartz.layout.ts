@@ -21,7 +21,7 @@ export const sharedPageComponents: SharedLayout = {
   footer: Component.Footer({
     links: {
       // PLACEHOLDER -- replace with the public claude-harness repo URL once published.
-      GitHub: "https://github.com/your-org/claude-harness",
+      GitHub: "https://github.com/Wombat164/claude-harness",
       "Built with Quartz": "https://quartz.jzhao.xyz/",
     },
   }),

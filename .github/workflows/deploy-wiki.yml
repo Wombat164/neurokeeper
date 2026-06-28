@@ -18,10 +18,9 @@
 name: Deploy wiki to GitHub Pages
 
 on:
-  # To deploy on wiki changes, enable Pages (Settings > Pages > Source = GitHub Actions) then uncomment:
-  # push:
-  #   branches: [main]
-  #   paths: ["wiki/**", ".github/workflows/deploy-wiki.yml"]
+  push:
+    branches: [main]
+    paths: ["wiki/**", ".github/workflows/deploy-wiki.yml"]
   workflow_dispatch: {} # manual trigger
 
 # Least-privilege default for the whole workflow; the deploy job widens its own scope below.

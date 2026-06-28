@@ -72,5 +72,5 @@ cat <<'EOF'
   - auth:  gh auth login ; glab auth login ; claude (login)
   - Obsidian (Linux: flatpak/AppImage/snap | macOS: brew install --cask obsidian) + plugins (Tag Wrangler, Linter[configure!], Frontmatter Smith, Git)
   - restore Claude memory: clone the memory repo into ~/.claude/projects/<env>/memory ; pull _shared/
-  - install this harness as a plugin: /plugin marketplace add <harness-url> ; /plugin install claude-harness
+  - install this harness as a plugin: /plugin marketplace add https://github.com/Wombat164/claude-harness ; /plugin install claude-harness
 EOF
