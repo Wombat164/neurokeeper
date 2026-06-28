@@ -147,6 +147,38 @@ Read-only -- nothing is changed.
 
 ---
 
+## Gate a vault repo in CI (pre-commit + GitHub Action)
+
+**Goal:** fail a commit / PR when the vault has real reference defects -- composing claude-harness with the
+existing markdown ecosystem instead of duplicating it.
+
+1. **pre-commit** -- in your vault repo's `.pre-commit-config.yaml`:
+   ```yaml
+   repos:
+     - repo: https://github.com/Wombat164/claude-harness
+       rev: v0.1.6
+       hooks: [{ id: claude-harness-doctor }]   # or: claude-harness-ref-audit
+   ```
+   pre-commit installs the package in an isolated venv and runs the CLI against the repo root.
+2. **GitHub Action** -- compose the commoditized checks (style, external links) with the vault-graph-aware
+   gate claude-harness uniquely provides:
+   ```yaml
+   - uses: actions/checkout@v4
+   - uses: DavidAnson/markdownlint-cli2-action@v16    # markdown style (not claude-harness's job)
+   - uses: lycheeverse/lychee-action@v2               # external link existence (not claude-harness's job)
+   - uses: Wombat164/claude-harness@v0.1.6            # broken wikilinks/.canvas/.base, orphans, health
+     with: { vault-path: ".", engine: "doctor", strict: "false" }
+   ```
+3. Understand what fails it. The exit code follows the doctor contract: broken `.canvas`/`.base` refs or an
+   engine error fail it; advisory findings and *skipped* (unconfigured) engines do not. Set
+   `frontmatter-schema` / `memory-dir` inputs to widen the gate. Full guide: `docs/ci-adapters.md`.
+
+> [!tip] Try it on the bundled example vault
+> `examples/vault/` is a tiny synthetic vault; `VAULT_ROOT=examples/vault claude-harness doctor` shows a
+> clean run (and is the fixture the project's own CI smoke-tests).
+
+---
+
 ## Offload cheap work to a self-hosted model (two lanes)
 
 **Goal:** keep hard agentic work on your normal Claude lane, but route mechanical, high-volume turns

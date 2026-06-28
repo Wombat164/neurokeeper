@@ -1,0 +1,47 @@
+name: "claude-harness vault check"
+description: "Gate a notes / Obsidian vault on deterministic reference-integrity + health checks (doctor / ref-audit)."
+branding:
+  icon: "check-circle"
+  color: "blue"
+inputs:
+  vault-path:
+    description: "Path to the vault root to check (default: the repo root)."
+    required: false
+    default: "."
+  engine:
+    description: "Which check to run: 'doctor' (aggregate health) or 'ref-audit' (reference integrity)."
+    required: false
+    default: "doctor"
+  strict:
+    description: "Also fail on unresolved wikilinks (forwarded to ref-audit). 'true' or 'false'."
+    required: false
+    default: "false"
+  frontmatter-schema:
+    description: "Optional path to your frontmatter schema-as-code. Set it to bring frontmatter-lint into the doctor run (else skipped)."
+    required: false
+    default: ""
+  memory-dir:
+    description: "Optional path to a file-based memory store. Set it to bring memory-consolidate into the doctor run (else skipped)."
+    required: false
+    default: ""
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+      with:
+        python-version: "3.13"
+    - name: Install claude-harness
+      shell: bash
+      run: pip install "${{ github.action_path }}"
+    - name: Run check
+      shell: bash
+      env:
+        VAULT_ROOT: ${{ inputs.vault-path }}
+        FRONTMATTER_SCHEMA: ${{ inputs.frontmatter-schema }}
+        CLAUDE_MEMORY_DIR: ${{ inputs.memory-dir }}
+      run: |
+        set -euo pipefail
+        args="--check"
+        [ "${{ inputs.strict }}" = "true" ] && args="$args --strict"
+        echo "running: claude-harness ${{ inputs.engine }} $args  (VAULT_ROOT=${{ inputs.vault-path }})"
+        claude-harness "${{ inputs.engine }}" $args

@@ -23,6 +23,7 @@ ENGINES = {
     "doctor":             "vault-doctor.py",
     "memory-consolidate": "memory-consolidate.py",
     "registry-generate":  "registry-generate.py",
+    "check-release":      "check-release.py",
 }
 
 

@@ -1,6 +1,6 @@
 {
   "name": "claude-harness",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Portable-core Claude Code harness: deterministic engines + prompt templates + thin adapters (skill/MCP/CLI). Engines are harness-agnostic; the Claude Code plugin is one adapter.",
   "author": { "name": "claude-harness contributors" }
 }

@@ -1,5 +1,16 @@
 # Releasing claude-harness
 
+## Pre-publish checks
+
+```
+python scripts/check-release.py     # offline: versions synced + plugin/marketplace manifests valid
+claude plugin validate . --strict   # richer manifest + skill/agent/hook frontmatter check (see note)
+```
+`check-release.py` runs in CI (`ci` -> `release manifests` job) on every push, so version drift or a
+malformed `plugin.json`/`marketplace.json` fails the build. `claude plugin validate --strict` is a
+**manual pre-publish step** (it may require a logged-in Claude CLI, so it is deliberately NOT in CI);
+run it locally before tagging. Validate both scopes: the repo root (the marketplace) and the plugin dir.
+
 ## Cut a release (GitHub)
 
 ```

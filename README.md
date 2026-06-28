@@ -5,7 +5,7 @@ harness-agnostic **engines** (deterministic scripts) + **prompt templates** + **
 a thin **adapter** binds them to a specific runtime. The Claude Code plugin is *one* adapter — the same
 core works from an MCP server, a plain CLI, or any other LLM harness.
 
-> Status: **0.1.5 (alpha).** Licensed **MIT** (see [`LICENSE`](LICENSE)).
+> Status: **0.1.6 (alpha).** Licensed **MIT** (see [`LICENSE`](LICENSE)).
 
 ## Why
 "Skills" (and plugins, hooks) are runtime-specific and not portable. Putting the real logic in **engines
@@ -77,6 +77,26 @@ default, mutating only with `--apply` behind the Obsidian-running guard; git is 
 - `_vault_lib.py` -- shared core (walk / frontmatter / folder-suffix / kebab); `_vault_guard.py` -- Obsidian-running guard
 
 Schema-as-code lives in your config; `config.example/frontmatter-schema.example.yaml` is a worked example.
+
+## Gate a vault in CI (pre-commit + GitHub Action)
+The same engines run as a commit/CI gate. claude-harness ships a `.pre-commit-hooks.yaml` and a composite
+`action.yml`; both run the **vault-graph-aware** checks it uniquely owns and **compose with** the ecosystem
+(markdownlint / lychee / check-jsonschema) for the commoditized ones.
+```yaml
+# .pre-commit-config.yaml (in your vault repo)
+repos:
+  - repo: https://github.com/Wombat164/claude-harness
+    rev: v0.1.6
+    hooks: [{ id: claude-harness-doctor }]
+```
+```yaml
+# a GitHub workflow step
+- uses: Wombat164/claude-harness@v0.1.6
+  with: { vault-path: ".", engine: "doctor", strict: "false" }
+```
+Exit semantics follow [ADR-0002](docs/adr-0002-doctor-exit-semantics.md) (fails on broken `.canvas`/`.base`
+refs or engine errors; advisory + skipped engines never fail). Full guide + the example vault:
+[`docs/ci-adapters.md`](docs/ci-adapters.md) · [`examples/vault/`](examples/vault).
 
 ## Fresh-machine reinstall (resilience) — Linux + macOS + Windows, co-equal
 `bootstrap/` rebuilds the whole multi-env setup on a clean **Linux, macOS, or Windows** box (the engines are

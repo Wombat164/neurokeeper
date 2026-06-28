@@ -1,0 +1,11 @@
+{
+  "nodes": [
+    {"id": "n1", "type": "file", "file": "02 - Projects/sample-project.md", "x": 0, "y": 0, "width": 400, "height": 120},
+    {"id": "n2", "type": "file", "file": "02 - Projects/migration-plan.md", "x": 0, "y": 220, "width": 400, "height": 120},
+    {"id": "n3", "type": "file", "file": "05 - Knowledge/portable-core.md", "x": 480, "y": 110, "width": 400, "height": 120}
+  ],
+  "edges": [
+    {"id": "e1", "fromNode": "n1", "toNode": "n2"},
+    {"id": "e2", "fromNode": "n1", "toNode": "n3"}
+  ]
+}

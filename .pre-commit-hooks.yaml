@@ -1,0 +1,27 @@
+# claude-harness pre-commit hooks. Consume from another (vault) repo's .pre-commit-config.yaml:
+#
+#   repos:
+#     - repo: https://github.com/Wombat164/claude-harness
+#       rev: v0.1.6
+#       hooks:
+#         - id: claude-harness-doctor          # aggregate health gate (recommended)
+#         # - id: claude-harness-ref-audit     # or just reference integrity
+#
+# pre-commit builds an isolated venv and installs this package, so the `claude-harness` CLI is the entry.
+# The engines scan VAULT_ROOT (defaults to the repo root). doctor SKIPS engines whose config is absent
+# (no FRONTMATTER_SCHEMA / CLAUDE_MEMORY_DIR) -- it never false-fails on unconfigured checks. Pair with
+# lychee / markdownlint / check-jsonschema for the commoditized checks this deliberately does NOT do.
+- id: claude-harness-doctor
+  name: claude-harness doctor (vault health gate)
+  description: Aggregate read-only health; fails on broken .canvas/.base refs or an engine error (honest tri-state).
+  entry: claude-harness doctor --check
+  language: python
+  pass_filenames: false
+  always_run: true
+- id: claude-harness-ref-audit
+  name: claude-harness ref-audit (reference integrity)
+  description: Reference-integrity gate; broken .canvas/.base fail, unresolved wikilinks informational (add --strict to fail).
+  entry: claude-harness ref-audit --check
+  language: python
+  pass_filenames: false
+  always_run: true
