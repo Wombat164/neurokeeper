@@ -20,6 +20,7 @@ ENGINES = {
     "set-note-type":      "vault-set-note-type.py",
     "taxonomy-inventory": "vault-taxonomy-inventory.py",
     "ref-audit":          "vault-ref-audit.py",
+    "doctor":             "vault-doctor.py",
     "memory-consolidate": "memory-consolidate.py",
     "registry-generate":  "registry-generate.py",
 }

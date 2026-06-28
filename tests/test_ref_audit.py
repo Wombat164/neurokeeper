@@ -76,3 +76,12 @@ def test_meta_files_not_audited(tmp_path):
 def test_external_and_anchor_not_broken(tmp_path):
     v = _vault(tmp_path / "v", {"a.md": "[x](https://example.com/y) and [[#heading]] and [s](#sec)\n"})
     assert _json(v)["broken_links"] == []
+
+
+def test_stem_collisions(tmp_path):
+    v = _vault(tmp_path / "v", {"A/note.md": "x\n", "B/note.md": "y\n", "unique.md": "z\n"})
+    d = _json(v)
+    stems = [c["stem"] for c in d["stem_collisions"]]
+    assert "note" in stems and "unique" not in stems
+    coll = next(c for c in d["stem_collisions"] if c["stem"] == "note")
+    assert coll["paths"] == ["A/note.md", "B/note.md"]

@@ -32,13 +32,28 @@ tags:
 ### `ref-audit`
 - **compute x effect:** deterministic x read-only
 - **What it does:** audits reference integrity across the vault -- unresolved links, orphans (no inbound),
-  dead-ends (no outbound), broken `.canvas` and `.base` file references, and orphan media (attachments
-  referenced by nothing). The read-only counterpart to `name-reconcile`. Unresolved wikilinks are
+  dead-ends (no outbound), broken `.canvas` and `.base` file references, orphan media (attachments
+  referenced by nothing), and exact name/stem collisions (a duplicated note basename makes a bare
+  `[[stem]]` link ambiguous). The read-only counterpart to `name-reconcile`. Unresolved wikilinks are
   **informational by default** (they are often intentional forward-links to not-yet-created notes);
   broken `.canvas`/`.base` refs are always real defects.
 - **Contract:** `--json`, `--check` (exit 1 on broken canvas/base refs), `--strict` (also fail on
   unresolved links).
 - **Env:** `VAULT_ROOT`, `VAULT_REFAUDIT_EXCLUDE`.
+
+### `doctor`
+- **compute x effect:** deterministic x read-only
+- **What it does:** aggregate health -- runs every *applicable* read-only engine (taxonomy-inventory,
+  ref-audit, and -- when their config is present -- frontmatter-lint, memory-consolidate), prints one
+  consolidated report, and rolls up an **honest** exit code. Each engine is reported as `ok` / `fail` /
+  `skipped`; an engine whose required config is absent is **skipped, never silently counted as a pass**.
+  The exit asserts *"an engine errored or a real gate failed"* -- NOT *"the vault is healthy"*: advisory
+  engines (taxonomy-inventory, frontmatter-lint) contribute numbers but cannot fail the roll-up. The CI
+  entrypoint for the pre-commit / GitHub-Action adapters. See [ADR-0002](https://github.com/Wombat164/claude-harness/blob/main/docs/adr-0002-doctor-exit-semantics.md).
+- **Contract:** `--json`, `--check` (exit 1 iff a gating engine failed or any engine errored),
+  `--strict` (forwarded to ref-audit).
+- **Env:** the union of the engines it runs (`VAULT_ROOT`; `FRONTMATTER_SCHEMA` / `CLAUDE_MEMORY_DIR`
+  decide applicability of those two).
 
 ### `frontmatter-lint`
 - **compute x effect:** deterministic x read-only

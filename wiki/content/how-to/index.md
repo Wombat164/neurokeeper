@@ -124,6 +124,29 @@ Read-only -- nothing is changed.
 
 ---
 
+## Run one aggregate health check (`doctor`)
+
+**Goal:** one command + one honest exit code over all the read-only checks -- the thing to wire into CI.
+
+1. Run it (read-only):
+   ```bash
+   export VAULT_ROOT="/path/to/your/notes"
+   claude-harness doctor            # consolidated report
+   claude-harness doctor --json     # machine-readable
+   ```
+2. Read the tri-state. Each engine is `ok`, `fail`, or `skipped`. **`skipped` means its config is not set**
+   (e.g. no `FRONTMATTER_SCHEMA`, no `CLAUDE_MEMORY_DIR`) -- it is *not* counted as a pass. The roll-up exit
+   asserts *"an engine errored or a real gate failed,"* not *"the vault is healthy"*: advisory checks
+   (taxonomy-inventory, frontmatter-lint) contribute numbers but cannot fail it.
+3. Gate CI on it:
+   ```bash
+   claude-harness doctor --check            # exit 1 iff a gating engine failed or any engine errored
+   claude-harness doctor --check --strict   # also fail on unresolved links (forwarded to ref-audit)
+   ```
+   Set `FRONTMATTER_SCHEMA` / `CLAUDE_MEMORY_DIR` to bring those engines into the gate; leave them unset to skip.
+
+---
+
 ## Offload cheap work to a self-hosted model (two lanes)
 
 **Goal:** keep hard agentic work on your normal Claude lane, but route mechanical, high-volume turns

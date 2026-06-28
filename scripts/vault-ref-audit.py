@@ -170,6 +170,11 @@ def main():
     dead_ends = sorted(rp for rp in notes if outbound[rp] == 0)
     orphan_media = sorted(rp for rp in all_files
                           if os.path.splitext(rp)[1].lower() in MEDIA_EXTS and rp not in referenced)
+    # exact name/stem collisions: a bare [[stem]] to a duplicated stem is ambiguous -- Obsidian resolves
+    # it to one shortest-path note. Informational (same basename in different folders is legal, and a
+    # path-qualified [[folder/stem]] still resolves), surfaced like orphans.
+    stem_collisions = sorted(({"stem": s, "paths": sorted(p)} for s, p in notes_by_stem.items() if len(p) > 1),
+                             key=lambda x: x["stem"])
 
     # Unresolved wikilinks are often INTENTIONAL in Obsidian (forward-links to not-yet-created notes), so
     # --check fails only on canvas/base broken refs (always-defects) unless --strict adds unresolved links.
@@ -177,10 +182,11 @@ def main():
     result = {
         "notes": len(notes), "files": len(all_files),
         "counts": {"broken_links": len(broken_links), "broken_canvas": len(broken_canvas),
-                   "broken_base": len(broken_base), "orphans": len(orphans),
-                   "dead_ends": len(dead_ends), "orphan_media": len(orphan_media)},
+                   "broken_base": len(broken_base), "orphans": len(orphans), "dead_ends": len(dead_ends),
+                   "orphan_media": len(orphan_media), "stem_collisions": len(stem_collisions)},
         "broken_links": broken_links, "broken_canvas": broken_canvas, "broken_base": broken_base,
         "orphans": orphans, "dead_ends": dead_ends, "orphan_media": orphan_media,
+        "stem_collisions": stem_collisions,
     }
 
     if as_json:
@@ -211,6 +217,8 @@ def main():
     _section("orphans (no inbound)", orphans, lambda o: o, 20)
     _section("dead-ends (no outbound)", dead_ends, lambda o: o, 20)
     _section("orphan media (referenced by nothing)", orphan_media, lambda o: o, 20)
+    _section("name/stem collisions (ambiguous bare-link resolution)", stem_collisions,
+             lambda c: f"{c['stem']}  ->  {', '.join(c['paths'])}", 15)
 
 
 if __name__ == "__main__":
