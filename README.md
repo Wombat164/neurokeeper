@@ -5,7 +5,7 @@ harness-agnostic **engines** (deterministic scripts) + **prompt templates** + **
 a thin **adapter** binds them to a specific runtime. The Claude Code plugin is *one* adapter — the same
 core works from an MCP server, a plain CLI, or any other LLM harness.
 
-> Status: **0.1.2 (alpha).** Licensed **MIT** (see [`LICENSE`](LICENSE)).
+> Status: **0.1.3 (alpha).** Licensed **MIT** (see [`LICENSE`](LICENSE)).
 
 ## Why
 "Skills" (and plugins, hooks) are runtime-specific and not portable. Putting the real logic in **engines

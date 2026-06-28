@@ -18,10 +18,15 @@ default** so releases stay green until you opt in. To enable:
      Add a GitHub publisher: owner `Wombat164`, repo `claude-harness`, workflow `release.yml`,
      environment `pypi`.
    - Docs: https://docs.pypi.org/trusted-publishers/
-2. **Opt in in this repo:** Settings -> Secrets and variables -> Actions -> Variables ->
-   add `PYPI_ENABLE` = `true`.
-3. **(Recommended) Protect the `pypi` environment:** Settings -> Environments -> `pypi` -> require a
-   reviewer, so a publish needs a manual approval.
+2. **Create + protect the `pypi` environment FIRST (precondition, not optional):** Settings ->
+   Environments -> new environment `pypi` -> require a reviewer. Do this BEFORE step 3, so the first
+   PyPI publish cannot fire without a human approval (OIDC trusted-publishing is otherwise fully
+   automatic on a published Release).
+3. **Then opt in:** Settings -> Secrets and variables -> Actions -> Variables -> add `PYPI_ENABLE` = `true`.
+
+Also recommended once, in this repo: protect `main` (Settings -> Rules/Branches: block force-push +
+deletion, require the `ci` checks) and install the OPSEC pre-push guard:
+`cp bootstrap/hooks/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push`.
 
 After that, every published GitHub Release runs `release.yml`, builds the wheel/sdist, and publishes to
 PyPI via OIDC. Until `PYPI_ENABLE=true`, the PyPI job is skipped (the release is GitHub-only).

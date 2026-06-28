@@ -17,14 +17,28 @@
 set -euo pipefail
 
 cfg="${CLAUDE_CHEAP_ENV:-$HOME/.config/claude-harness/cheap-lane.env}"
-# shellcheck disable=SC1090
-[ -f "$cfg" ] && . "$cfg"
-
-if [ -z "${CLAUDE_CHEAP_BASE_URL:-}" ]; then
-  echo "claude-cheap: set CLAUDE_CHEAP_BASE_URL (your self-hosted /v1/messages endpoint)." >&2
-  echo "  via env, or $cfg -- see docs/two-lane-model-handoff.md + config.example/cheap-lane.env.example" >&2
-  exit 2
+# PARSE the config as literal KEY=VALUE (never `source` it -- sourcing would execute arbitrary code in
+# an attacker-writable config). Only the three CLAUDE_CHEAP_* keys are honoured; anything else is ignored.
+if [ -f "$cfg" ]; then
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in ''|'#'*) continue ;; esac
+    key=$(printf '%s' "${line%%=*}" | tr -d '[:space:]')
+    val=${line#*=}; val=${val# }            # value taken literally (no expansion)
+    case "$key" in
+      CLAUDE_CHEAP_BASE_URL|CLAUDE_CHEAP_MODEL|CLAUDE_CHEAP_TOKEN) export "$key=$val" ;;
+      *) : ;;                                # ignore any other key
+    esac
+  done < "$cfg"
 fi
+
+case "${CLAUDE_CHEAP_BASE_URL:-}" in
+  http://*|https://*) ;;
+  "") echo "claude-cheap: set CLAUDE_CHEAP_BASE_URL (your self-hosted /v1/messages endpoint)." >&2
+      echo "  via env, or $cfg -- see docs/two-lane-model-handoff.md + config.example/cheap-lane.env.example" >&2
+      exit 2 ;;
+  *)  echo "claude-cheap: CLAUDE_CHEAP_BASE_URL must be an http(s) URL (got: $CLAUDE_CHEAP_BASE_URL)" >&2
+      exit 2 ;;
+esac
 
 export ANTHROPIC_BASE_URL="$CLAUDE_CHEAP_BASE_URL"
 export ANTHROPIC_AUTH_TOKEN="${CLAUDE_CHEAP_TOKEN:-local}"

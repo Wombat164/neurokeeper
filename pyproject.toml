@@ -13,7 +13,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "claude-harness"
-version = "0.1.2"
+version = "0.1.3"
 description = "Portable-core harness for agentic coding/knowledge work: deterministic engines + prompt templates + thin adapters."
 readme = "README.md"
 requires-python = ">=3.9"

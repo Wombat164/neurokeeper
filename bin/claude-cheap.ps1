@@ -11,14 +11,20 @@
 $ErrorActionPreference = "Stop"
 
 $cfg = if ($env:CLAUDE_CHEAP_ENV) { $env:CLAUDE_CHEAP_ENV } else { "$HOME/.config/claude-harness/cheap-lane.env" }
+$allow = @("CLAUDE_CHEAP_BASE_URL", "CLAUDE_CHEAP_MODEL", "CLAUDE_CHEAP_TOKEN")
 if (Test-Path $cfg) {
   Get-Content $cfg | Where-Object { $_ -and -not $_.StartsWith("#") -and $_.Contains("=") } | ForEach-Object {
-    $k, $v = $_.Split("=", 2); Set-Item -Path "Env:$($k.Trim())" -Value $v.Trim()
+    $k, $v = $_.Split("=", 2); $k = $k.Trim()
+    if ($allow -contains $k) { Set-Item -Path "Env:$k" -Value $v.Trim() }  # ignore any other key (no env injection)
   }
 }
 
 if (-not $env:CLAUDE_CHEAP_BASE_URL) {
   Write-Error "claude-cheap: set CLAUDE_CHEAP_BASE_URL (your self-hosted /v1/messages endpoint) -- via env or $cfg. See docs/two-lane-model-handoff.md"
+  exit 2
+}
+if ($env:CLAUDE_CHEAP_BASE_URL -notmatch '^https?://') {
+  Write-Error "claude-cheap: CLAUDE_CHEAP_BASE_URL must be an http(s) URL (got: $($env:CLAUDE_CHEAP_BASE_URL))"
   exit 2
 }
 
