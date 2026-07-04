@@ -1,6 +1,6 @@
 ---
 title: Getting started
-description: Install neurokeeper and run your first engine -- as a CLI and as a Claude Code plugin.
+description: Install neurokeeper and run your first engine - as a CLI and as a Claude Code plugin.
 tags:
   - tutorial
   - getting-started
@@ -12,7 +12,7 @@ tags:
 > have a specific task in mind, see [How-to guides](../how-to/).
 
 By the end you will have installed neurokeeper, listed its engines, and run a read-only engine that
-produces a JSON report -- without touching any of your files.
+produces a JSON report - without touching any of your files.
 
 ## Prerequisites
 
@@ -20,7 +20,7 @@ produces a JSON report -- without touching any of your files.
 - A terminal. That is all you need for the CLI path.
 - *(Optional)* **Claude Code**, if you want to try the plugin adapter in the last step.
 
-## Step 1 -- Get the code
+## Step 1 - Get the code
 
 Either install the published package, or work from a checkout:
 
@@ -35,9 +35,9 @@ pipx install neurokeeper        # or: uv tool install neurokeeper
 ```
 
 This puts a single console command, `neurokeeper`, on your PATH. That command is a **dispatcher**: it
-runs the same engine files the plugin and CI use -- one codebase, no fork.
+runs the same engine files the plugin and CI use - one codebase, no fork.
 
-## Step 2 -- List the engines
+## Step 2 - List the engines
 
 ```bash
 neurokeeper --list
@@ -47,7 +47,7 @@ You should see the available engines (for example `taxonomy-inventory`, `frontma
 `memory-consolidate`, `registry-generate`). Each name maps to one deterministic script. Full descriptions
 live in the [Reference engine catalog](../reference/).
 
-## Step 3 -- Run your first engine (read-only)
+## Step 3 - Run your first engine (read-only)
 
 Every engine defaults to **report-only**: it never writes anything unless you explicitly pass `--apply`.
 Run the capability registry generator, which just prints the catalog of engines as markdown:
@@ -56,7 +56,7 @@ Run the capability registry generator, which just prints the catalog of engines 
 neurokeeper registry-generate
 ```
 
-Now ask an engine for machine-readable output -- the `--json` flag is part of every engine's contract:
+Now ask an engine for machine-readable output - the `--json` flag is part of every engine's contract:
 
 ```bash
 neurokeeper registry-generate --json
@@ -64,7 +64,7 @@ neurokeeper registry-generate --json
 
 You just exercised the core contract: a deterministic engine, a `--json` output, and zero side effects.
 
-## Step 4 -- Point an engine at some content
+## Step 4 - Point an engine at some content
 
 Engines that work over a notes vault read their target from the environment, so the same binary works
 against any vault:
@@ -74,7 +74,7 @@ export VAULT_ROOT="/path/to/your/notes"     # Windows PowerShell: $env:VAULT_ROO
 neurokeeper taxonomy-inventory --json
 ```
 
-This produces a read-only inventory of naming / tags / frontmatter. Still nothing is written -- inventory
+This produces a read-only inventory of naming / tags / frontmatter. Still nothing is written - inventory
 is a read-only capability. (For the env vars each engine reads, see the
 [Reference: environment configuration](../reference/).)
 
@@ -88,9 +88,9 @@ is a read-only capability. (For the env vars each engine reads, see the
 > If it is unset and no schema is found, those engines print a one-line message telling you how to set
 > it (instead of a traceback). The `taxonomy-inventory` engine you ran above needs no schema.
 
-## Step 5 -- Try the Claude Code adapter (optional)
+## Step 5 - Try the Claude Code adapter (optional)
 
-The CLI you just used is one face of the core. The Claude Code plugin is another -- the *same* engines,
+The CLI you just used is one face of the core. The Claude Code plugin is another - the *same* engines,
 exposed as skills and hooks:
 
 ```text
@@ -105,7 +105,7 @@ runs the identical engine and adds an LLM-judgment step on top of the engine's o
 
 - neurokeeper installs as **one dispatcher CLI** that runs deterministic engines.
 - Every engine speaks the same **contract**: `--json` output, exit codes, **report-by-default**.
-- The **same engines** back the CLI, CI, and the Claude Code plugin -- different adapters, one core.
+- The **same engines** back the CLI, CI, and the Claude Code plugin - different adapters, one core.
 
 ## Next steps
 

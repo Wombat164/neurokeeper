@@ -1,4 +1,4 @@
-# ADR-0001: Backend contract -- Obsidian coupling, posture, and scope
+# ADR-0001: Backend contract - Obsidian coupling, posture, and scope
 
 - Status: **Accepted** (proof shipped; full multi-backend is trigger-gated, not scheduled)
 - Date: 2026-06-28
@@ -9,18 +9,18 @@
 The deterministic vault engines were written against Obsidian conventions. An audit found the coupling
 concentrated at **five seams**:
 
-1. **LINK** -- wikilink grammar (`[[t]]`, `[[t|a]]`, `[[t#h]]`, `![[t]]`, `[[folder/t]]`, escaped-pipe `[[t\|a]]`)
-2. **METADATA** -- YAML `---` frontmatter
-3. **TAGS** -- `#tag` inline + frontmatter `tags:`
-4. **STORE** -- the markdown file walk / read / write / rename
-5. **GUARD** -- the "is the editor running" write preflight (the Linter-corruption guard)
+1. **LINK** - wikilink grammar (`[[t]]`, `[[t|a]]`, `[[t#h]]`, `![[t]]`, `[[folder/t]]`, escaped-pipe `[[t\|a]]`)
+2. **METADATA** - YAML `---` frontmatter
+3. **TAGS** - `#tag` inline + frontmatter `tags:`
+4. **STORE** - the markdown file walk / read / write / rename
+5. **GUARD** - the "is the editor running" write preflight (the Linter-corruption guard)
 
 Two motivations were raised: (a) an "exit strategy" from Obsidian (the *app* is proprietary, though the
 *data* is open markdown), and (b) running the engines over other note stores (plain-markdown, Foam).
 
 ## Key finding (load-bearing)
 
-**The engines already survive an Obsidian exit.** Five of six engines never touch a link -- they walk the
+**The engines already survive an Obsidian exit.** Five of six engines never touch a link - they walk the
 filesystem, read YAML, and match `#tags`, all identical across Obsidian / Foam / plain-markdown. The only
 Obsidian-*app* dependency is the write-GUARD, which is a safety feature for Obsidian users and already a
 no-op elsewhere. So the cheap 80% ("do not hard-depend on the app") was already true in how the engines
@@ -28,7 +28,7 @@ were written (env-driven `VAULT_ROOT`, filesystem walk, YAML). The data is porta
 is "switch editor", not "migrate data".
 
 A second finding bounds the abstraction: the canonical `Link(target, anchor, alias, embed)` model is
-**intentionally lossy** -- it cannot round-trip Obsidian's escaped-pipe table syntax `[[t\|a]]`. So
+**intentionally lossy** - it cannot round-trip Obsidian's escaped-pipe table syntax `[[t\|a]]`. So
 link-*rewriting* cannot be a single generic transform; each backend supplies its own. Obsidian uses a
 verbatim, byte-identical regex; the generic (markdown) rewriter handles unambiguous `[a](t.md)` links.
 
@@ -59,7 +59,7 @@ verbatim, byte-identical regex; the generic (markdown) rewriter handles unambigu
   hardest mutators (`tag-reconcile`, `frontmatter-fix`, `set-note-type`) therefore keep their write logic
   engine-local; they are *not* yet backend-decoupled. Add `make_tag_rewriter` / a frontmatter-field writer
   if/when a second backend needs them.
-- **STORE is `.md`-only.** `.canvas` (JSON) and `.base` (YAML) references are not updated on rename -- a
+- **STORE is `.md`-only.** `.canvas` (JSON) and `.base` (YAML) references are not updated on rename - a
   rename can leave dangling canvas/base links. Out of scope until a trigger fires; flagged here.
 - **No link-RESOLVE seam.** Shortest-path resolution lives inside the Obsidian adapter; link-graph engines
   (orphans/backlinks) would need a `resolve()` seam before they can decouple.
@@ -70,7 +70,7 @@ verbatim, byte-identical regex; the generic (markdown) rewriter handles unambigu
 
 ## Consequences
 
-- The Obsidian exit is held **cheaply** -- the insurance was mostly pre-paid by the engines' filesystem +
+- The Obsidian exit is held **cheaply** - the insurance was mostly pre-paid by the engines' filesystem +
   YAML design; this ADR records the recipe to add an adapter on demand.
 - We avoid an engines x backends test-matrix tax and a near-duplicate Foam adapter for a user base that
   does not exist yet.

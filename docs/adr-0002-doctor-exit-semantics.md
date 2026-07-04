@@ -1,4 +1,4 @@
-# ADR-0002: `doctor` exit semantics -- tri-state, honest roll-up
+# ADR-0002: `doctor` exit semantics - tri-state, honest roll-up
 
 - Status: **Accepted** (2026-06-28)
 - Context engine: `scripts/vault-doctor.py` (and the CI/pre-commit adapters that consume it)
@@ -9,11 +9,11 @@
 all, exit non-zero if anything is wrong") is a **false-assurance trap**, because the engines do not all
 gate equally:
 
-- `taxonomy-inventory` -- no `--check`, no failure exit. Pure inventory.
-- `frontmatter-lint --check` -- **advisory**: it reports off-vocab/missing-axes counts but exits 0 by design.
-- `memory-consolidate --check` -- a real gate, but only when a memory store is configured; absent
+- `taxonomy-inventory` - no `--check`, no failure exit. Pure inventory.
+- `frontmatter-lint --check` - **advisory**: it reports off-vocab/missing-axes counts but exits 0 by design.
+- `memory-consolidate --check` - a real gate, but only when a memory store is configured; absent
   `CLAUDE_MEMORY_DIR` it is a no-op.
-- `ref-audit --check` -- a real gate, but narrow: fails only on broken `.canvas`/`.base` refs (and, with
+- `ref-audit --check` - a real gate, but narrow: fails only on broken `.canvas`/`.base` refs (and, with
   `--strict`, unresolved links). Orphans / dead-ends / orphan-media never fail it.
 
 A green roll-up built naively would mean "ref-audit found no broken canvas/base ref" while a vault full of
@@ -27,17 +27,17 @@ is unset. Running it anyway in `doctor` would flood a consumer with false off-vo
 
 1. **Tri-state per engine: `ok` / `fail` / `skipped`.** `skipped` = the engine's required config is not
    present (e.g. `frontmatter-lint` without `FRONTMATTER_SCHEMA`, `memory-consolidate` without an existing
-   `CLAUDE_MEMORY_DIR`). A skipped engine is reported as skipped -- **never silently counted as a pass.**
-2. **The exit code asserts: "an engine ERRORED, or a real gate FAILED" -- NOT "the vault is healthy."**
+   `CLAUDE_MEMORY_DIR`). A skipped engine is reported as skipped - **never silently counted as a pass.**
+2. **The exit code asserts: "an engine ERRORED, or a real gate FAILED" - NOT "the vault is healthy."**
    - `--check` exits 1 iff a *gating* engine returned a failure (`ref-audit` broken canvas/base; with
      `--strict` also unresolved links; `memory-consolidate` broken-links/orphans) **or** any engine
      crashed/errored unexpectedly.
    - Advisory/informational engines (`taxonomy-inventory`, `frontmatter-lint`) contribute their numbers to
      the report but **cannot fail** the roll-up.
 3. **Skipped never fails.** A vault repo with no memory store and no schema yields a green `doctor` with
-   two engines reported `skipped` -- which is honest ("not configured"), not a false pass.
+   two engines reported `skipped` - which is honest ("not configured"), not a false pass.
 4. **Compose by subprocess.** `doctor` runs each engine as a subprocess and reads its exit code + `--json`,
-   reusing the test suite's pattern -- not in-process (the CLI dispatcher runs engines via `runpy` which
+   reusing the test suite's pattern - not in-process (the CLI dispatcher runs engines via `runpy` which
    calls `sys.exit`).
 
 ## Consequences
