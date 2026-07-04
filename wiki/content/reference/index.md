@@ -45,6 +45,17 @@ tags:
   the scan stays graph-global, only the surfaced findings and the `--check` gate are narrowed, so it
   is ideal for a pre-commit / CI diff run). A bad ref or non-git tree exits 2 rather than silently
   scanning the wrong scope.
+- **Baseline (adopt on a dirty vault):** `--write-baseline <file>` records the current findings as
+  accepted (then exits 0); `--baseline <file>` reports only NET-NEW findings and gates `--check` on
+  them, so a 5-year vault can turn the tool on from day one and only fail on debt it *adds*. Findings
+  are fingerprinted by semantic identity (a broken link keys on its missing target, not the source
+  path), so a note rename does not resurrect the baseline. The human output nags with how many
+  baselined findings are now resolved, so the baseline shrinks instead of ossifying.
+- **SARIF / Findings IR:** `--sarif` emits findings as SARIF 2.1.0 for GitHub code-scanning, rendered
+  from the canonical **Findings IR** (`scripts/_findings.py`: `(engine, rule, severity, path, line,
+  message, fingerprint)`) that every engine can share, so new formats (JUnit, a Bases view) become thin
+  renderers rather than per-engine serializers. It composes with `--since` / `--baseline` (the SARIF
+  reflects the scoped set) and reuses the baseline fingerprints as SARIF `partialFingerprints`.
 - **Env:** `VAULT_ROOT`, `VAULT_REFAUDIT_EXCLUDE`.
 
 ### `doctor`
@@ -78,10 +89,14 @@ tags:
 - **What it does:** applies the schema's reconciliation maps (e.g. normalising status / maturity /
   horizon values) by **surgical line-edits** on the frontmatter block, preserving formatting and field
   order (no YAML reparse).
-- **Contract:** `--apply`, `--force`, `--json` (report-only without `--apply`), and `--dates` --
-  opt-in `date` -> `created` field dedup (kept opt-in because it ripples into Dataview queries and
-  templates that still read `date`).
-- **Audit:** git. **Forbidden-zones:** attended by default; optional `VAULT_FORBIDDEN_ZONES` skip.
+- **Contract:** `--apply`, `--force`, `--json` (report-only without `--apply`), `--dates` (opt-in
+  `date` -> `created` field dedup, kept opt-in because it ripples into Dataview queries and templates
+  that still read `date`), and `--audit-log <file>` (on `--apply`, append a tamper-evident record of
+  the batch to a hash-chained log).
+- **Audit:** git, plus an optional hash-chained log via `--audit-log` (the reusable audit substrate
+  `scripts/_audit.py`, which any apply-engine can write to; each entry chains the prior one's hash, so a
+  silent after-the-fact edit is detectable). **Forbidden-zones:** attended by default; optional
+  `VAULT_FORBIDDEN_ZONES` skip.
 - **Env:** `VAULT_ROOT`, `FRONTMATTER_SCHEMA`, `VAULT_FORBIDDEN_ZONES`.
 
 ### `set-note-type`
@@ -134,7 +149,13 @@ tags:
   separators, entry-length ceiling); and link integrity. Wikilink targets and backtick paths are
   stripped before the separator check, so a legitimate dash inside a real note name is never flagged.
   Never blocks (exit 0) - a nudge, not a gate.
-- **Contract:** `--json`, `--check`, `--terse`, `--lint`, `--today YYYY-MM-DD`.
+- **Candidate detection (since 2026-07-04):** `--candidates` emits deterministic MERGE and
+  CONTRADICTION candidate pairs as JSON. MERGE keys on filename-stem token overlap or a shared
+  `originSessionId`; CONTRADICTION on feedback-rule pairs that share a domain keyword and carry
+  opposite stance words (always/never, prefer/avoid, ...). It is a narrowing pre-filter for a gated
+  judge, the same deterministic-first shape as the tag reconcile fuzzy-gate, on memory files: the
+  engine proposes candidates, never verdicts. (Roadmap R14.)
+- **Contract:** `--json`, `--check`, `--terse`, `--lint`, `--candidates`, `--today YYYY-MM-DD`.
 - **Audit (capability):** append-only, hash-chained log (not git - see [[explanation/index]]).
 - **Env:** `CLAUDE_MEMORY_DIR`, optional `VAULT_INBOX_DIR`, `VAULT_ROOT`.
 
