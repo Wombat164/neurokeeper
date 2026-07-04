@@ -131,8 +131,12 @@ backtick paths / `](targets)` BEFORE the separator check, so a legitimate dash i
 is never flagged. Backend-agnostic (applies to any backend's entrypoint index). Field receipt: a
 production vault's `memory-consolidate` shipped `BYTES_BUDGET = 45000` (1.8x the real 25000 cap), so it
 reported "OK" while the loader truncated the index every session - VERIFY thresholds against the real
-harness limit, never hardcode a guess. neurokeeper's own copy carries the same 45000 and should be
-recalibrated.
+harness limit, never hardcode a guess. neurokeeper's own copy has since been recalibrated to 25000.
+Refinement (2026-07-04 live audit): the caps are DUPLICATED across three places - the engine
+constants, the SessionStart memory-health hook, and the docs prose - which drift independently (a
+run found the engine reporting all-green at 21.6KB while the hook still warned against a 17.1KB
+target). Single-source the caps (engine emits the byte/line status; hook and docs read it) so the
+three can never disagree again.
 
 ### R12. Shared / cross-env index consolidation (operator-requested 2026-07-04)
 When a memory layer is SHARED across environments (a synced cross-env note set behind its own git
@@ -143,6 +147,99 @@ that layer too. Load-bearing constraint: a shared layer is MULTI-OWNER (other en
 it) and gated (scope tags, secret scan), so this stays strictly detect+propose, pull-first,
 operator-confirm, and never a silent apply from one environment. Backend-agnostic: a "shared layer" is
 any second-brain's synced / multi-owner subtree, not a specific product.
+
+### R13. Memory-consolidation apply primitives + reusable audit substrate (field receipt 2026-07-04)
+memory-consolidate DETECTS + PROPOSES (stale / orphan / broken / dead-end / importance) but the APPLY
+half of a consolidation - archive a dormant entry into an `archive-*` sub-index, merge two overlapping
+notes preserving frontmatter and retargeting the index line, demote a situational cluster, tighten an
+overlong index line - is entirely skill-prose today (a production vault runs it as a step-by-step
+slash-command with per-row diffs). Those operations are DETERMINISTIC and reusable, yet have no engine
+home, unlike `vault-name-reconcile` which IS the deterministic apply for renames. Add
+memory-consolidate `--apply-plan <rows>` (or a sibling engine) with archive/merge/demote/tighten
+primitives that preserve frontmatter + update the index + relink; detect+propose by default,
+apply-on-confirm. Pairs with a REUSABLE audit substrate: a hash-chained append-only dream-log +
+pre-batch validation (target-existence, forbidden-zone, chain-integrity, line-count projection) +
+per-row anomaly detection is generically valuable to EVERY mutating engine (name-reconcile,
+tag-reconcile, frontmatter-fix), not just memory - lift it into a neurokeeper capability any
+apply-engine writes to, rather than leaving it env-local.
+
+### R14. Deterministic candidate detection for merge + contradiction (the R9 fuzzy-gate, applied to the memory store)
+A live consolidation run (2026-07-04) did merge-cluster and contradiction detection with pure-LLM
+subagents because the engine offers no candidate-narrowing. Both are the SAME deterministic-first +
+gated-LLM shape R9 formalizes for tags:
+- MERGE candidates are deterministically detectable - filename-stem token overlap, shared `archive-*`
+  parent, shared `originSessionId`/creation-date, high co-reference (two notes always cited in the
+  same index cluster) - then a gated LLM judges semantic mergeability on the narrowed set (most
+  invocations never reach the LLM). Mirrors tag-reconcile's morphological-groups -> gated-judgment,
+  on memory FILES instead of tags.
+- CONTRADICTION candidates: feedback-rule pairs sharing a domain keyword AND carrying opposite stance
+  words (always/never, do/don't, keep/drop) are a cheap deterministic pre-filter that narrows the
+  LLM's read set from the whole store to a handful; the LLM judges real-conflict vs scoped-distinction
+  vs duplicate. Field result on a healthy store: 0 real contradictions - but the pre-filter is what
+  makes the sweep affordable to run every time.
+The importance/decay score (`importance = recency * base_weight`, gate at 0.15) is ALREADY an
+in-engine instance of this shape; R14 extends it to the two judgment tasks that currently escape to
+unaided LLMs. Calibration hook: the existing row-confirm usage-log (did the operator accept the
+deterministic stale-flag / reject a proposed archive) is a free signal to tune the 0.15 threshold and
+the typed half-lives, instead of leaving them hand-set forever.
+
+> **Cross-cutting pattern (recognized 2026-07-04).** R9 (tags), R14 (memory merge/contradiction +
+> the importance gate), and a sibling render project's decision-capture are three instances of ONE
+> doctrine: a deterministic result + a confidence score + a threshold gate, escalating to an LLM
+> (or a human) only for the residue above the gate. New engines that touch judgment should default
+> to this shape rather than calling a model unconditionally.
+
+### R15-R19. Prior-art sweep survivors (2026-07-04 research + red-team pass)
+
+A prior-art sweep (PyPI/npm note-linters, LLM-memory frameworks, SARIF/JUnit tooling, monorepo
+lint-baseline patterns) plus an own-thinking + red-team pass produced these. The red-team KILLED one
+candidate (lint an external memory-tool dir - wrong product surface, breaks the small-fixed-engine-set
+doctrine) and FOLDED three into existing slots (zones-config -> R2; utility-signal forgetting ->
+R14 as a second decay axis; README prior-art citations -> through the existing claims-audit step).
+Five survive as their own items, ordered by value x confidence / effort. Sequencing note: R16 (the
+Findings IR) is the keystone - build it BEFORE any new emitter (SARIF/JUnit/Bases) or you re-implement
+serialization per engine.
+
+### R15. `--since <ref>` diff-aware report filter
+Pre-commit / CI adopters want "just the findings for what changed since `main`", not the whole-vault
+report. Add `--since <git-ref>` that filters emitted findings to notes touched in the diff. Scope the
+claim honestly: this is a REPORT filter, not an O(diff) scan - link/tag/anchor resolution is
+graph-global (a renamed target breaks backlinks in unchanged files), so the graph is still built in
+full; only the findings surfaced are narrowed. Cheapest real adoption win; pairs naturally with R18's
+run-receipt (which records that the scan was full even when the report was scoped).
+
+### R16. Findings IR (one canonical result schema all engines emit)
+Every engine today hand-rolls its own JSON/text shape, so each new consumer (SARIF for code-scanning,
+JUnit for CI gates, a Bases view, an editor squiggle) is an N-engines x M-formats matrix. Define ONE
+internal findings schema - `{engine, rule, severity, path, line?, message, fingerprint}` - that every
+engine emits, and make the output formats thin renderers over it. Force-multiplier: it collapses the
+matrix to N producers + M renderers, and it is the precondition that makes R15 (`--since` filter),
+R18 (run-receipt envelope), and the backlogged SARIF/JUnit emitters cheap instead of bespoke. Build
+first among R15-R19.
+
+### R17. `neurokeeper.toml` config self-validation (`config --validate`)
+R2 introduces per-vault config (zones, budgets, vocab). Config that silently misparses is the
+silent-wrong-scope failure class in a new disguise: a typo'd key or wrong-typed value that the loader
+skips leaves the engine running on defaults while the operator believes their overrides applied. Add
+`neurokeeper config --validate` (also run implicitly at engine start): known-keys check, type check,
+path-existence check for zone/root entries, and a non-zero exit on any unknown or malformed key.
+Closes the drift class R2 would otherwise open.
+
+### R18. Universal run-receipt (make silent-wrong-scope fail loudly)
+This project produced the failure pattern TWICE in one cycle - a byte-budget that drifted to 1.8x the
+real cap (R11), and hardcoded walk-excludes that quietly narrowed the scanned set (R2's motivation) -
+both of which ran green while scanning the wrong thing. Emit a run-receipt on every engine run:
+`{engine, version, config-hash, root, files-scanned, findings, duration}`. A run that scanned 0 files,
+the wrong root, or a stale config-hash is then visible at a glance instead of passing as a clean exit.
+Cheap, and it is the generic answer to the class R15/R17 each address one instance of.
+
+### R19. `--baseline` onboarding for existing (dirty) vaults
+A 5-year vault turned on cold emits thousands of findings and the operator bounces off. Add
+`--baseline` (record current findings as accepted) + `--new-only` (report only findings absent from the
+baseline), so adoption gates on NET-NEW debt from day one. Two red-team guardrails, both mandatory: the
+baseline fingerprint must be content/rule-based (R16's `fingerprint`), NOT raw path, so a note rename
+does not resurrect the whole file as new; and every run must emit a shrink-nag (baseline size + delta)
+to avoid the rubocop_todo antipattern where the baseline becomes permanent, never-shrinking debt.
 
 ## Shipped this cycle (2026-07-04)
 
