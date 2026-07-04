@@ -6,6 +6,11 @@ Full per-release notes: https://github.com/Wombat164/neurokeeper/releases
 
 ## [Unreleased]
 
+### Added
+- README quickstart GIF (install then `doctor`, showcasing the run-receipt) and an `example-vault`
+  CI badge: a workflow runs `doctor --check` against the bundled `examples/vault/` on every push,
+  dogfooding the tool and proving a clean install.
+
 ## [0.3.5] - 2026-07-04
 
 ### Added
