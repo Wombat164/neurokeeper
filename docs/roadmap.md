@@ -44,7 +44,7 @@ switch must never require editing an engine.
 Each backend declares: link grammar (parser/renderer), editor process names for the GUARD (e.g.
 `Obsidian.exe`, `Logseq.exe`, none), config-dir name (`.obsidian`, `.logseq`), and whether a live
 index exists. Add the RESOLVE seam ADR-0001 already flags (shortest-path/basename wikilink
-resolution) -- `ref-audit`'s new anchor resolution (2026-07-04) deepened LINK usage and makes the
+resolution) - `ref-audit`'s new anchor resolution (2026-07-04) deepened LINK usage and makes the
 missing seam more visible.
 
 ### R4. Editor-state preflight as a first-class utility
@@ -57,7 +57,7 @@ what consumers calling editor CLIs/plugins need). Upstream the reference deploym
 ### R5. INDEX seam (optional capability, never a CLI shell-out)
 Some data is better from a live index (backlink graph, search index) than from an FS scan. Model it
 as an optional backend capability with mandatory filesystem degradation. Explicit non-goal: calling
-the `obsidian` CLI from engines (GUI-bound, boots the app when closed -- see field evidence 1). If a
+the `obsidian` CLI from engines (GUI-bound, boots the app when closed - see field evidence 1). If a
 live-index transport is ever wanted, the obsidian-mcp REST/FS server is the candidate carrier, not
 the CLI.
 
@@ -68,7 +68,7 @@ rollup note, `memory-consolidate` -> stale-review queue. Rationale: headless-wri
 live, zero CLI dependency, and it keeps the detect+propose doctrine (the Base IS the proposal
 surface). Backend descriptor gates it (Bases are Obsidian-only; the markdown backend emits a plain
 table note instead). Related STORE gap from ADR-0001: rename should also update `.canvas`/`.base`
-references -- same file formats, do them together.
+references - same file formats, do them together.
 
 ### R7. Third adapter, trigger-gated (unchanged posture)
 Best validating target remains Logseq (`[[Page]]` + `((block-ref))` + journal-file STORE semantics)
@@ -101,7 +101,7 @@ lane is invoked ONLY for the gated residue:
 3. **Gated agent handoff (below threshold only)**: the engine EMITS handoff packets (chunk files +
    strict tag/DROP/MERGE/KEEP schema + legal-merge-target list) and later RE-INGESTS verdict files
    through a validation gate (line-count reconciliation, target-legality, pattern downgrades,
-   conservative default for missing verdicts). The LLM never runs inside the engine -- packets out,
+   conservative default for missing verdicts). The LLM never runs inside the engine - packets out,
    validated files in, per the two-lane-model-handoff doctrine. Field-proven contract: 8 parallel
    haiku-class agents, ~90s/203-tag chunk, 100% coverage; agents MUST write verdict files
    themselves (final-message-only output was lost once when transcripts were not persisted).
@@ -109,7 +109,7 @@ lane is invoked ONLY for the gated residue:
    frozen-zone skips, digit-leading-tag regex hazards handled), census re-run as the verifier,
    registry regeneration (the canonical band-grouped tag registry note).
 5. **Guard stage**: registry doubles as `frontmatter-lint` allowed-tags config so doctor//health
-   flag novel tags on every run -- prevention instead of periodic cleanup.
+   flag novel tags on every run - prevention instead of periodic cleanup.
 6. **Operator gates**: one confirm before mass apply when drops exceed a configurable threshold or
    the run touches more than N files; frozen zones never rewritten regardless of confirmation.
    Prior art for the gating tiers: a production vault's impact-class agent-action-gating doctrine.
@@ -125,7 +125,7 @@ grow MCP transport themselves.
 stays inside the harness read cap and reads as a tight index. Three axes: (a) the TWO-axis load cap -
 the memory loader reads only the first 200 lines OR 25000 bytes (24.4KB), whichever comes first, then
 silently drops the rest (warn at a 140-line / 17.5KB headroom target); (b) compression - one line per
-entry, telegraphic style, no ` -- `/` -> ` separators, entry-length ceiling; (c) link integrity,
+entry, telegraphic style, no ` - `/` -> ` separators, entry-length ceiling; (c) link integrity,
 reusing the orphan/broken-link pass. A context-aware `strip_protected()` removes `[[targets]]` /
 backtick paths / `](targets)` BEFORE the separator check, so a legitimate dash inside a real note name
 is never flagged. Backend-agnostic (applies to any backend's entrypoint index). Field receipt: a
@@ -269,7 +269,7 @@ timer re-publishes stale content on a cadence; a gate blocks the staleness at th
   health/maintenance/closeday commands (first cross-vault consumer of the engines as a fallback
   tier).
 - Field run: full tag optimization on a production vault (2383 -> 905 distinct; morphological via
-  tag-reconcile + semantic tail via gated haiku fan-out + deterministic validation/apply) -- the
+  tag-reconcile + semantic tail via gated haiku fan-out + deterministic validation/apply) - the
   worked example R9 formalizes. Also surfaced: engines should support argparse `--help` instead of
   running on unknown flags.
 

@@ -12,7 +12,7 @@ tags:
 
 ## The problem: runtime-specific logic is not portable
 
-Agent runtimes give you constructs -- skills, plugins, hooks, slash commands -- and it is tempting to put
+Agent runtimes give you constructs - skills, plugins, hooks, slash commands - and it is tempting to put
 your capability's logic *in* them. The catch: that logic is then locked to one runtime. Move to a
 different harness, or want to run the same capability in CI or behind a self-hosted model, and you are
 rewriting it. "Skills are not portable" is the gap this project closes.
@@ -38,16 +38,16 @@ PORTABLE CORE  (harness-agnostic; the reusable asset)
 The rule that makes it work: **put all load-bearing logic in the engine + prompt; keep adapters thin.**
 If logic lives in the skill markdown, it is locked to one runtime. If it lives in the engine, it is
 portable. The payoff is portability, vendor-neutrality, open-source reuse (others bring their own
-harness), and a token-saving handoff -- an adapter can point the same engine at a self-hosted open model.
+harness), and a token-saving handoff - an adapter can point the same engine at a self-hosted open model.
 
 ### The three core artifacts
 
-- **engine** -- a deterministic script that computes facts / candidates / validations, or applies a
+- **engine** - a deterministic script that computes facts / candidates / validations, or applies a
   deterministic transform. It exposes `--json` and exit codes. It **cannot hallucinate**: it is code.
-- **prompt** -- a markdown template for the LLM-judgment step, *if any*. It references the engine's
+- **prompt** - a markdown template for the LLM-judgment step, *if any*. It references the engine's
   output and restates no facts. It does only the judgment the engine cannot: decide, synthesize,
-  classify, write prose -- bounded by the engine's output.
-- **contract** -- the engine's documented CLI flags and `--json` schema, versioned. It is the stable
+  classify, write prose - bounded by the engine's output.
+- **contract** - the engine's documented CLI flags and `--json` schema, versioned. It is the stable
   seam adapters and prompts depend on. Change the schema -> bump the version -> update consumers.
 
 A load-bearing invariant follows: *the LLM never states a number or filename the engine did not produce.*
@@ -82,14 +82,14 @@ be open-sourced while the sensitive material never leaves home.
 
 | Layer | What lives here | Publishable? |
 |---|---|---|
-| **L1a -- portable core** | The generic engines, prompts, and contracts. The reusable asset. | Yes (open-source). |
-| **L1b -- private mechanism** | Domain-specific engines (for example a bespoke document renderer for one organisation's templates). Same pattern, private content. | No. |
-| **L2 -- config** | The config the engines read: registries, denylists, paths, vocabularies, schemas. Schema-as-code. | Schemas/examples only. |
-| **L3 -- content** | The actual notes and memory facts the engines act on. | No -- never. |
+| **L1a - portable core** | The generic engines, prompts, and contracts. The reusable asset. | Yes (open-source). |
+| **L1b - private mechanism** | Domain-specific engines (for example a bespoke document renderer for one organisation's templates). Same pattern, private content. | No. |
+| **L2 - config** | The config the engines read: registries, denylists, paths, vocabularies, schemas. Schema-as-code. | Schemas/examples only. |
+| **L3 - content** | The actual notes and memory facts the engines act on. | No - never. |
 
 This split mirrors the "public base + private overlay" idea from dotfiles managers (chezmoi, GNU stow,
 yadm): a public, generic base plus a private overlay that never enters the public repo. The harness
-**ships L1a plus L2 schemas and examples** -- never real config (L2 values) and never content (L3). A
+**ships L1a plus L2 schemas and examples** - never real config (L2 values) and never content (L3). A
 consumer supplies their own private config and content. Memory holds only a one-line *pointer* to a
 capability, never its detail.
 
@@ -99,20 +99,20 @@ A capability does not have to do everything itself. The division this project fo
 
 > **Custom engines DETECT + PROPOSE (the genuine gaps); mature tools do APPLY + QUERY + INPUT.**
 
-The genuinely missing piece is usually the *detection and proposal* logic -- finding the tag-merge
+The genuinely missing piece is usually the *detection and proposal* logic - finding the tag-merge
 groups, computing the health score, deriving the rename. The *apply*, *query*, and *input* steps are
 already solved well by mature ecosystem tools (a tag-rename tool that uses the app's own parser; a query
 plugin for dashboards; a frontmatter-input plugin with controlled-vocabulary dropdowns). So the engine
 detects and proposes; the mature tool applies. Don't reinvent the apply.
 
 This is also why attribution is first-class: whenever a capability borrows, wraps, or recommends an
-external project, it is cited by name, author, licence, and URL -- in both the code and a single sources
+external project, it is cited by name, author, licence, and URL - in both the code and a single sources
 list. Good citizenship, and a precondition for publishing.
 
 ## Adapters and the MCP graduation ladder
 
 The core is fixed; the **binding varies**. Default to on-box (a script / CLI / a plugin skill). An MCP or
-HTTP binding is **not** a more advanced skill -- it is a different binding for a different need, and it
+HTTP binding is **not** a more advanced skill - it is a different binding for a different need, and it
 has real cost.
 
 **Stay on-box** when the capability is a local, fast, deterministic transform with a single consumer and
@@ -120,18 +120,18 @@ no shared state. Wrapping that in a server is pure overhead and attack surface.
 
 **Graduate to an MCP / API binding** only when a trigger fires:
 
-1. **Shared live state** -- a single source of truth across multiple consumers (a database).
-2. **It is a service, not a transform** -- stateful, long-running, concurrent, needs auth or
+1. **Shared live state** - a single source of truth across multiple consumers (a database).
+2. **It is a service, not a transform** - stateful, long-running, concurrent, needs auth or
    rate-limiting, or wraps an external system.
-3. **Cross-machine** -- it must run elsewhere (for example a remote GPU host) and be called from your
+3. **Cross-machine** - it must run elsewhere (for example a remote GPU host) and be called from your
    workstation. This is the self-hosted-model handoff.
-4. **Cross-harness reuse via one standard** -- one server callable by many clients with no per-harness
+4. **Cross-harness reuse via one standard** - one server callable by many clients with no per-harness
    adapter.
-5. **Called mid-reasoning** -- the model must invoke it inline as a typed tool, not as a slash command.
+5. **Called mid-reasoning** - the model must invoke it inline as a typed tool, not as a slash command.
 
 Because the core is fixed, graduating later is cheap: give the engine a clean `--json` contract now, add
-the binding when a trigger fires. Never MCP-everything; never on-box-everything. The MCP cost -- a server
-to run, auth, a network hop, and an egress surface -- is exactly why it is opt-in.
+the binding when a trigger fires. Never MCP-everything; never on-box-everything. The MCP cost - a server
+to run, auth, a network hop, and an egress surface - is exactly why it is opt-in.
 
 ## Audit substrates: two stores, two logs
 
@@ -146,5 +146,5 @@ mutations into bare git) is a category error.
 
 ## See also
 
-- Do it: [How-to guides](../how-to/) · Learn it: [[tutorials/index|Getting started]] · Look it up:
+- Do it: [How-to guides](../how-to/) / Learn it: [[tutorials/index|Getting started]] / Look it up:
   [Reference](../reference/).

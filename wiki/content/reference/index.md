@@ -11,10 +11,10 @@ tags:
 
 ## Conventions used in the catalog
 
-- **CLI name** -- the dispatcher subcommand: `neurokeeper <name> [args]`.
-- **compute x effect** -- the [[explanation/index|capability typology]]: *compute* is
+- **CLI name** - the dispatcher subcommand: `neurokeeper <name> [args]`.
+- **compute x effect** - the [[explanation/index|capability typology]]: *compute* is
   `deterministic` / `llm` / `hybrid`; *effect* is `read-only` / `mutating`.
-- **Universal contract** -- every engine supports `--json` (machine-readable output) and meaningful
+- **Universal contract** - every engine supports `--json` (machine-readable output) and meaningful
   exit codes, and is **report-by-default**. Mutating engines write only with `--apply`, and bulk vault
   writes refuse to run while a notes app is open unless given `--force`.
 
@@ -31,7 +31,7 @@ tags:
 
 ### `ref-audit`
 - **compute x effect:** deterministic x read-only
-- **What it does:** audits reference integrity across the vault -- unresolved links, orphans (no inbound),
+- **What it does:** audits reference integrity across the vault - unresolved links, orphans (no inbound),
   dead-ends (no outbound), broken `.canvas` and `.base` file references, orphan media (attachments
   referenced by nothing), and exact name/stem collisions (a duplicated note basename makes a bare
   `[[stem]]` link ambiguous). The read-only counterpart to `name-reconcile`. Unresolved wikilinks are
@@ -46,11 +46,11 @@ tags:
 
 ### `doctor`
 - **compute x effect:** deterministic x read-only
-- **What it does:** aggregate health -- runs every *applicable* read-only engine (taxonomy-inventory,
-  ref-audit, and -- when their config is present -- frontmatter-lint, memory-consolidate), prints one
+- **What it does:** aggregate health - runs every *applicable* read-only engine (taxonomy-inventory,
+  ref-audit, and - when their config is present - frontmatter-lint, memory-consolidate), prints one
   consolidated report, and rolls up an **honest** exit code. Each engine is reported as `ok` / `fail` /
   `skipped`; an engine whose required config is absent is **skipped, never silently counted as a pass**.
-  The exit asserts *"an engine errored or a real gate failed"* -- NOT *"the vault is healthy"*: advisory
+  The exit asserts *"an engine errored or a real gate failed"* - NOT *"the vault is healthy"*: advisory
   engines (taxonomy-inventory, frontmatter-lint) contribute numbers but cannot fail the roll-up. The CI
   entrypoint for the pre-commit / GitHub-Action adapters. See [ADR-0002](https://github.com/Wombat164/neurokeeper/blob/main/docs/adr-0002-doctor-exit-semantics.md).
 - **Contract:** `--json`, `--check` (exit 1 iff a gating engine failed or any engine errored),
@@ -60,7 +60,7 @@ tags:
 
 ### `frontmatter-lint`
 - **compute x effect:** deterministic x read-only
-- **What it does:** validates notes against your schema-as-code -- flags off-vocabulary values, missing
+- **What it does:** validates notes against your schema-as-code - flags off-vocabulary values, missing
   recommended axes, redundant date fields, and unknown fields. Advisory (reports; does not block).
 - **Contract:** `--json`, `--terse`, `--check`, `--schema <path>`, `--vault <path>`.
 - **Env:** `VAULT_ROOT`, `FRONTMATTER_SCHEMA`, `VAULT_SCAN_EXCLUDE`.
@@ -79,7 +79,7 @@ tags:
 ### `set-note-type`
 - **compute x effect:** deterministic x **mutating**
 - **What it does:** additively sets a `note_type` frontmatter field derived from a folder-to-type map.
-  Additive and idempotent -- inserts one line, never rewrites content, skips notes that already have it.
+  Additive and idempotent - inserts one line, never rewrites content, skips notes that already have it.
 - **Contract:** `--apply` (report-only otherwise).
 - **Audit:** git. **Forbidden-zones:** scoped (folder allowlist); optional `VAULT_FORBIDDEN_ZONES` skip.
 - **Env:** `VAULT_ROOT`, `VAULT_FORBIDDEN_ZONES`.
@@ -103,7 +103,7 @@ tags:
 - **Contract:** `--json`, `--apply`, `--force`, plus a `dedash` mode (light: only normalise dash
   separators, keep case) vs the default `kebab` mode (full lowercase-hyphen slug). Scope with
   `--under <folder>` to pilot the rename on one subtree, and `--no-exclusions` to override the
-  `VAULT_NORENAME_ZONES` guard (rename even protected folders -- deliberate, rarely wanted).
+  `VAULT_NORENAME_ZONES` guard (rename even protected folders - deliberate, rarely wanted).
 - **Audit:** git. **Forbidden-zones:** rename-protected via `VAULT_NORENAME_ZONES`; optional
   `VAULT_FORBIDDEN_ZONES` skip (never writes those files).
 - **Env:** `VAULT_ROOT`, `VAULT_NORENAME_ZONES`, `VAULT_FORBIDDEN_ZONES`.
@@ -111,7 +111,7 @@ tags:
 ### `memory-consolidate`
 - **compute x effect:** the engine is deterministic x read-only; the full **memory-audit** capability is
   hybrid x mutating (engine + judgment + gate + audit via an adapter).
-- **What it does:** the deterministic analyzer behind the memory-audit -- computes a multi-metric health
+- **What it does:** the deterministic analyzer behind the memory-audit - computes a multi-metric health
   score, an importance/decay curve, and orphan / broken-link / stale / dead-end detection over a
   file-based memory store, then emits a consolidation proposal. Read-only: it proposes, never writes.
 - **Decay model (since 2026-07-04):** per-note-type base half-life via frontmatter `metadata.type` --
@@ -120,27 +120,27 @@ tags:
 - **Snooze (since 2026-07-04):** a `reviewed: YYYY-MM-DD` frontmatter stamp suppresses the stale flag
   for 120 days (override with `ttl: <days>`). Use it after deliberately re-validating an old note.
 - **Index lint (since 2026-07-04):** `--lint` is an advisory, no-model check that a memory *index*
-  file -- the always-loaded entrypoint that a harness reads first -- stays inside its read cap and
+  file - the always-loaded entrypoint that a harness reads first - stays inside its read cap and
   reads as a tight index. Three axes: the two-axis load cap (200 lines OR 25000 bytes, whichever comes
-  first, warn at a headroom target); one-line-per-entry telegraphic compression (no ` -- ` / ` -> `
+  first, warn at a headroom target); one-line-per-entry telegraphic compression (no ` - ` / ` -> `
   separators, entry-length ceiling); and link integrity. Wikilink targets and backtick paths are
   stripped before the separator check, so a legitimate dash inside a real note name is never flagged.
-  Never blocks (exit 0) -- a nudge, not a gate.
+  Never blocks (exit 0) - a nudge, not a gate.
 - **Contract:** `--json`, `--check`, `--terse`, `--lint`, `--today YYYY-MM-DD`.
-- **Audit (capability):** append-only, hash-chained log (not git -- see [[explanation/index]]).
+- **Audit (capability):** append-only, hash-chained log (not git - see [[explanation/index]]).
 - **Env:** `CLAUDE_MEMORY_DIR`, optional `VAULT_INBOX_DIR`, `VAULT_ROOT`.
 
 ### `registry-generate`
 - **compute x effect:** deterministic x read-only
 - **What it does:** scans the harness for per-engine metadata headers and emits the capability registry.
-  Anti-rot by construction -- the catalog is generated from the source-of-truth headers, never
+  Anti-rot by construction - the catalog is generated from the source-of-truth headers, never
   hand-maintained. Engines without a header are listed as the classification backlog.
 - **Contract:** `--json`, `--write` (writes the registry doc; prints to stdout otherwise).
 - **Env:** `HARNESS_ROOT` (defaults to the repo root).
 
 > [!info] Shared internals (not dispatcher subcommands)
 > Two helper modules are imported by the engines rather than run directly: a **shared library**
-> (vault walk, frontmatter split, slug helpers -- one definition, imported everywhere) and a
+> (vault walk, frontmatter split, slug helpers - one definition, imported everywhere) and a
 > **write-guard** preflight (refuses bulk vault writes while the notes app is open). Both are
 > deterministic and read-only.
 
@@ -186,7 +186,7 @@ Field meanings:
 
 ## Environment configuration
 
-Engines are config-free by design -- they read their target and options from the environment, so the
+Engines are config-free by design - they read their target and options from the environment, so the
 same binary works against any vault or memory store. Provide your own values (an example config file
 ships with the repo; the harness ships schemas and examples only, never real config or content).
 
@@ -194,17 +194,17 @@ ships with the repo; the harness ships schemas and examples only, never real con
 |---|---|---|
 | `VAULT_ROOT` | the vault engines | Path to your notes vault (defaults to the current directory). |
 | `VAULT_SCAN_EXCLUDE` | the vault engines | Comma-separated directory prefixes to skip while scanning. |
-| `VAULT_REFAUDIT_EXCLUDE` | `ref-audit` | Comma-separated dirs the audit never walks (default: system/tool dirs only -- attachment dirs ARE walked, to flag orphan media). |
+| `VAULT_REFAUDIT_EXCLUDE` | `ref-audit` | Comma-separated dirs the audit never walks (default: system/tool dirs only - attachment dirs ARE walked, to flag orphan media). |
 | `VAULT_NORENAME_ZONES` | `name-reconcile` | Comma-separated folders to protect from rename (still scanned as link sources). |
 | `VAULT_FORBIDDEN_ZONES` | the mutating engines | Optional. Comma-separated reldir prefixes the mutators skip writing entirely. Unset (default) = no skipping; the operator watching the run plus the git diff is the control. |
 | `FRONTMATTER_SCHEMA` | the frontmatter engines | Path to your schema-as-code file. |
 | `CLAUDE_MEMORY_DIR` | `memory-consolidate` | Path to the file-based memory store. |
-| `VAULT_INBOX_DIR` | `memory-consolidate` | Optional -- enables an inbox-pressure metric. |
+| `VAULT_INBOX_DIR` | `memory-consolidate` | Optional - enables an inbox-pressure metric. |
 | `HARNESS_ROOT` | `registry-generate` | Root to scan for metadata headers (defaults to the repo root). |
 
 ### Schema-as-code (the frontmatter engines)
 
 The frontmatter lint and fix validate notes against a schema file you supply. The schema defines your
-controlled axes -- for example `note_type`, `status`, `maturity`, `horizon`, and `lang`, plus any
+controlled axes - for example `note_type`, `status`, `maturity`, `horizon`, and `lang`, plus any
 project-specific axes you add and their vocabularies and reconciliation maps. The **engine is
 vault-agnostic**; all vocabulary lives in your schema, not in the code.

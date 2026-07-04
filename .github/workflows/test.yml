@@ -1,7 +1,7 @@
-# neurokeeper -- GitHub Actions CI.
+# neurokeeper - GitHub Actions CI.
 # Fast engine tests run on every push/PR (no system installs). The heavy bootstrap
 # matrix (apt/brew/winget-installs whole toolchains) is GATED to manual dispatch,
-# releases, and a weekly schedule -- it doesn't need to run on every commit.
+# releases, and a weekly schedule - it doesn't need to run on every commit.
 name: ci
 
 on:
@@ -11,7 +11,7 @@ on:
   release:
     types: [published]
   schedule:
-    - cron: "0 6 * * 1"   # Mon 06:00 UTC -- exercise the heavy bootstrap matrix weekly
+    - cron: "0 6 * * 1"   # Mon 06:00 UTC - exercise the heavy bootstrap matrix weekly
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -64,7 +64,7 @@ jobs:
           curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${VER}/gitleaks_${VER}_linux_x64.tar.gz" -o gl.tgz
           echo "${SHA}  gl.tgz" | sha256sum -c -
           tar -xzf gl.tgz gitleaks
-          # DEFAULT rules only (secret-only -- API keys/tokens/private keys). Safe to publish.
+          # DEFAULT rules only (secret-only - API keys/tokens/private keys). Safe to publish.
           ./gitleaks detect --source . --redact --no-banner --exit-code 1
 
   # ---- release manifests: version-sync + plugin/marketplace sanity (offline, stdlib-only) ----

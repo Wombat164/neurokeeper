@@ -4,14 +4,14 @@
 #   https://github.com/jackyzha0/quartz/blob/v4/docs/hosting.md   (action versions, permissions,
 #   concurrency, node 22, build command, upload/deploy actions)
 #
-# This repo holds ONLY our config + content under wiki/ -- the Quartz framework is NOT vendored
+# This repo holds ONLY our config + content under wiki/ - the Quartz framework is NOT vendored
 # (see wiki/README.md). So this workflow differs from the vanilla recipe in one way: instead of
 # building the repo as-is, it FETCHES Quartz v4 (pinned to a commit SHA), overlays
 # wiki/quartz.config.ts + wiki/quartz.layout.ts + wiki/content/, then builds. The verified parts
 # (action versions, permissions, concurrency, the upload-pages-artifact -> deploy-pages handoff)
 # are kept exactly as the official recipe specifies.
 #
-# PREREQUISITE: enable Pages first -- repo Settings > Pages > Source = "GitHub Actions". Until then the
+# PREREQUISITE: enable Pages first - repo Settings > Pages > Source = "GitHub Actions". Until then the
 # deploy job fails by design. To deploy automatically on wiki changes, enable Pages and uncomment the
 # push trigger below.
 

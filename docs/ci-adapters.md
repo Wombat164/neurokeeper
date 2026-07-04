@@ -9,7 +9,7 @@ else.
 
 **neurokeeper gates** (no other CI tool does these): broken `[[wikilink]]` resolution, orphans /
 dead-ends, **broken `.canvas` / `.base` referential integrity**, name/stem collisions, controlled-vocab
-frontmatter (when you supply a schema), and -- via `doctor` -- an honest aggregate roll-up.
+frontmatter (when you supply a schema), and - via `doctor` - an honest aggregate roll-up.
 
 **Compose with the ecosystem** for the commoditized checks (do NOT expect neurokeeper to do them):
 
@@ -34,7 +34,7 @@ repos:
 ```
 
 pre-commit builds an isolated venv, installs the package, and runs the `neurokeeper` CLI. The engines
-scan the repo root (`VAULT_ROOT`). `doctor` **skips** engines whose config is absent -- it never
+scan the repo root (`VAULT_ROOT`). `doctor` **skips** engines whose config is absent - it never
 false-fails on an unconfigured check.
 
 ## GitHub Action
@@ -45,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # commoditized checks -- compose with the ecosystem (neurokeeper does not reimplement these):
+      # commoditized checks - compose with the ecosystem (neurokeeper does not reimplement these):
       - uses: DavidAnson/markdownlint-cli2-action@v16
       - uses: lycheeverse/lychee-action@v2
       # the vault-graph-aware gate neurokeeper uniquely provides:

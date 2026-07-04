@@ -9,7 +9,7 @@ issue. We aim to acknowledge reports promptly.
 ## Secret scanning
 
 CI runs [gitleaks](https://github.com/gitleaks/gitleaks) with its **default rules** (API keys,
-tokens, private keys) on every push, against the working tree -- this scan is blocking. The
+tokens, private keys) on every push, against the working tree - this scan is blocking. The
 deterministic engines ship no secrets; the scan keeps it that way.
 
 ```

@@ -2,10 +2,10 @@
 
 The keystone architecture contract for every capability that acts on the vault or the harness.
 Everything downstream (classification, registry, the harness repo, the taxonomy engines, the OSS handoff)
-conforms to this. Prose avoids ` -- ` and em-dashes (operator pref).
+conforms to this. Prose avoids ` - ` and em-dashes (operator pref).
 
 Grounded in the Claude Code construct definitions (skill/script/Workflow/hook/MCP/subagent are the only
-constructs -- there is no "pipeline" construct), the deterministic-engine lesson (never let the LLM state
+constructs - there is no "pipeline" construct), the deterministic-engine lesson (never let the LLM state
 a fact the engine did not produce), and the portability requirement (the harness must be usable by ANY
 open-LLM harness, not just Claude Code).
 
@@ -89,13 +89,13 @@ the frontmatter lint.) Wrapping these in MCP is pure overhead + attack surface.
 
 **Graduate to an MCP/API binding when ANY of these triggers fire:**
 1. **Shared live state / single source of truth** across multiple consumers (a DB, a CMDB).
-2. **It is a service, not a transform** -- stateful, long-running, concurrent, needs auth/rate-limiting,
+2. **It is a service, not a transform** - stateful, long-running, concurrent, needs auth/rate-limiting,
    or wraps an external system.
-3. **Cross-machine / remote** -- must run elsewhere (a self-hosted GPU box) and be called from the
+3. **Cross-machine / remote** - must run elsewhere (a self-hosted GPU box) and be called from the
    workstation. (This is the OSS-model handoff: the self-hosted model as an MCP/OpenAI endpoint.)
-4. **Cross-harness reuse via one standard** -- one MCP server callable by Claude Code AND other MCP
+4. **Cross-harness reuse via one standard** - one MCP server callable by Claude Code AND other MCP
    clients, no per-harness adapter. (The portability multiplier.)
-5. **Model-calls-it-mid-reasoning** -- the LLM must invoke it inline as a typed tool, not as a
+5. **Model-calls-it-mid-reasoning** - the LLM must invoke it inline as a typed tool, not as a
    `/command`.
 
 **The cost of MCP (why not by default):** a server to run (lifecycle + 502-when-down), auth, a network
@@ -129,7 +129,7 @@ Every `mutating` capability MUST, in the engine (not just in docs):
 2. **Operator-confirm** the mutation (per-row diff-preview for multi-item; single confirm for atomic).
 3. **Write the audit** (section 5) on success.
 4. **Verify** post-write (re-run the read-side check; e.g., `--check`).
-5. **Preflight guards** relevant to the substrate -- e.g., for bulk VAULT writes, refuse if Obsidian is
+5. **Preflight guards** relevant to the substrate - e.g., for bulk VAULT writes, refuse if Obsidian is
    running (the 2026-06-27 linter-corruption lesson; the linter mangles frontmatter on live external
    writes).
 
@@ -224,7 +224,7 @@ Engines + adapters must run on Git-for-Windows / MSYS, not just POSIX. Two gotch
   codepage (cp1252 on Windows), which fails on UTF-8 bytes (em-dashes, accents) in git/CLI output ->
   garbled output or `None`. Always pass `encoding="utf-8", errors="replace"`.
 - **Never pass leading-slash paths to git/MSYS tools.** MSYS rewrites a leading-slash argument
-  (`/foo.md`) into a Windows path (`C:/Program Files/Git/foo.md`) -- POSIX-path conversion that silently
+  (`/foo.md`) into a Windows path (`C:/Program Files/Git/foo.md`) - POSIX-path conversion that silently
   corrupts e.g. `git sparse-checkout set`. Use bare/relative paths (`git sparse-checkout set foo.md`, not
   `/foo.md`); use `MSYS_NO_PATHCONV=1` only as a last resort.
 - File reads/writes: always `open(..., encoding="utf-8")`; write with `newline=""` to preserve a file's
@@ -235,9 +235,9 @@ Engines + adapters must run on Git-for-Windows / MSYS, not just POSIX. Two gotch
 This harness is publish-destined, so attribution is both good citizenship and a legal precondition.
 Whenever a capability **borrows from**, **wraps**, or **recommends** an OSS project:
 - Cite it where it appears: **name + author/org + licence + repo URL**, in BOTH the code comment and the
-  doc/schema line (e.g. `Tag Wrangler -- pjeby, MIT -- https://github.com/pjeby/tag-wrangler`).
+  doc/schema line (e.g. `Tag Wrangler - pjeby, MIT - https://github.com/pjeby/tag-wrangler`).
 - Keep a single **`docs/SOURCES.md`** (or a Sources section in the wiki) listing every external project,
-  spec, or article the harness relies on or learned from -- the OSS wiki's reference list is generated
+  spec, or article the harness relies on or learned from - the OSS wiki's reference list is generated
   from these citations.
 - Distinguish clearly in comments: *what is ours* (the detect/propose logic, the KOS vocabs) vs *what is
   borrowed* (the apply/query/input via Obsidian-native tools). Never imply authorship of borrowed work.
@@ -245,7 +245,7 @@ Whenever a capability **borrows from**, **wraps**, or **recommends** an OSS proj
   source commit.
 
 The division this encodes: **custom engines DETECT + PROPOSE (the genuine gaps); mature OSS does
-APPLY + QUERY + INPUT** -- Tag Wrangler (tag merge), Obsidian Bases (queries/dashboards), the Linter +
+APPLY + QUERY + INPUT** - Tag Wrangler (tag merge), Obsidian Bases (queries/dashboards), the Linter +
 Properties + Frontmatter Smith (frontmatter input/normalisation). Don't reinvent the apply.
 
 ## Changelog

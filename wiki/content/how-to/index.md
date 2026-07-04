@@ -16,7 +16,7 @@ A quick safety model that applies to every recipe below:
 > Mutating engines do nothing destructive until you pass `--apply`. Bulk vault writes additionally
 > **refuse to run while your notes app is open** (a linter running in the app can mangle frontmatter
 > mid-write). Close the app first, or pass `--force` to override deliberately. For mutating engines,
-> **git is the audit trail** -- commit before, review the diff after.
+> **git is the audit trail** - commit before, review the diff after.
 
 ---
 
@@ -28,12 +28,12 @@ root) and converge them on a single canonical spelling.
 1. Point the engine at your vault and run it read-only to see the proposed merge groups:
    ```bash
    export VAULT_ROOT="/path/to/your/notes"
-   neurokeeper tag-reconcile            # proposal only -- writes nothing
+   neurokeeper tag-reconcile            # proposal only - writes nothing
    neurokeeper tag-reconcile --json     # same proposal, machine-readable
    ```
 2. Review the groups. The engine **detects and proposes**; it does not decide for you. Genuine synonyms
-   (two different words meaning the same thing) are intentionally out of scope -- supply those yourself.
-3. **Apply** the merge. Prefer your notes app's own tag-rename tool for the write -- it uses the app's
+   (two different words meaning the same thing) are intentionally out of scope - supply those yourself.
+3. **Apply** the merge. Prefer your notes app's own tag-rename tool for the write - it uses the app's
    parser, updates every usage (including nested tags), and avoids the linter race. The engine's
    `--apply` is a guarded fallback for bulk runs:
    ```bash
@@ -59,9 +59,9 @@ multi-metric score) and an evidence-backed consolidation proposal.
    ```
    `--lint` is the check to wire into a session-start hook or pre-commit for the *index* file itself:
    it flags an index that has grown past the harness read cap (so the tail is silently dropped) or
-   drifted from the one-line-per-entry telegraphic style. It never blocks (exit 0) -- a nudge, not a gate.
+   drifted from the one-line-per-entry telegraphic style. It never blocks (exit 0) - a nudge, not a gate.
 2. Read the proposal. Every number is computed from the real filesystem, so it is reproducible and
-   cannot be fabricated -- this is the whole point of pushing the counting into an engine.
+   cannot be fabricated - this is the whole point of pushing the counting into an engine.
 3. To act on it with judgment + confirmation, use the **memory-audit** capability through an adapter
    (for example the Claude Code skill). The adapter runs this same engine, then applies the
    consolidation prompt, gates each change, and writes an append-only audit entry.
@@ -91,9 +91,9 @@ off-vocabulary values.
    neurokeeper frontmatter-lint            # human report
    neurokeeper frontmatter-lint --json     # machine-readable
    ```
-3. Reconcile (mutating) -- dry-run first, then apply with your notes app closed:
+3. Reconcile (mutating) - dry-run first, then apply with your notes app closed:
    ```bash
-   neurokeeper frontmatter-fix             # dry-run -- writes nothing
+   neurokeeper frontmatter-fix             # dry-run - writes nothing
    neurokeeper frontmatter-fix --apply     # apply (close your notes app first)
    ```
 4. Review `git diff`, then commit. The commit *is* the audit record.
@@ -108,7 +108,7 @@ off-vocabulary values.
 ## Audit vault references
 
 **Goal:** find broken links, orphans, dead-ends, broken `.canvas`/`.base` references, and orphan media.
-Read-only -- nothing is changed.
+Read-only - nothing is changed.
 
 1. Point it at your vault and run it:
    ```bash
@@ -116,7 +116,7 @@ Read-only -- nothing is changed.
    neurokeeper ref-audit            # human report
    neurokeeper ref-audit --json     # machine-readable
    ```
-2. Read the report. **Unresolved wikilinks are informational** -- in Obsidian a `[[link]]` to a
+2. Read the report. **Unresolved wikilinks are informational** - in Obsidian a `[[link]]` to a
    not-yet-created note is a legitimate forward-reference. Only broken `.canvas`/`.base` refs (a board or
    base pointing at a deleted file) fail `--check`; orphans, dead-ends, and orphan media are surfaced for
    review but not gated.
@@ -130,7 +130,7 @@ Read-only -- nothing is changed.
 
 ## Run one aggregate health check (`doctor`)
 
-**Goal:** one command + one honest exit code over all the read-only checks -- the thing to wire into CI.
+**Goal:** one command + one honest exit code over all the read-only checks - the thing to wire into CI.
 
 1. Run it (read-only):
    ```bash
@@ -139,7 +139,7 @@ Read-only -- nothing is changed.
    neurokeeper doctor --json     # machine-readable
    ```
 2. Read the tri-state. Each engine is `ok`, `fail`, or `skipped`. **`skipped` means its config is not set**
-   (e.g. no `FRONTMATTER_SCHEMA`, no `CLAUDE_MEMORY_DIR`) -- it is *not* counted as a pass. The roll-up exit
+   (e.g. no `FRONTMATTER_SCHEMA`, no `CLAUDE_MEMORY_DIR`) - it is *not* counted as a pass. The roll-up exit
    asserts *"an engine errored or a real gate failed,"* not *"the vault is healthy"*: advisory checks
    (taxonomy-inventory, frontmatter-lint) contribute numbers but cannot fail it.
 3. Gate CI on it:
@@ -153,10 +153,10 @@ Read-only -- nothing is changed.
 
 ## Gate a vault repo in CI (pre-commit + GitHub Action)
 
-**Goal:** fail a commit / PR when the vault has real reference defects -- composing neurokeeper with the
+**Goal:** fail a commit / PR when the vault has real reference defects - composing neurokeeper with the
 existing markdown ecosystem instead of duplicating it.
 
-1. **pre-commit** -- in your vault repo's `.pre-commit-config.yaml`:
+1. **pre-commit** - in your vault repo's `.pre-commit-config.yaml`:
    ```yaml
    repos:
      - repo: https://github.com/Wombat164/neurokeeper
@@ -164,7 +164,7 @@ existing markdown ecosystem instead of duplicating it.
        hooks: [{ id: neurokeeper-doctor }]   # or: neurokeeper-ref-audit
    ```
    pre-commit installs the package in an isolated venv and runs the CLI against the repo root.
-2. **GitHub Action** -- compose the commoditized checks (style, external links) with the vault-graph-aware
+2. **GitHub Action** - compose the commoditized checks (style, external links) with the vault-graph-aware
    gate neurokeeper uniquely provides:
    ```yaml
    - uses: actions/checkout@v4
@@ -187,7 +187,7 @@ existing markdown ecosystem instead of duplicating it.
 
 **Goal:** keep hard agentic work on your normal Claude lane, but route mechanical, high-volume turns
 (commit messages, summaries, extraction, classification, formatting) to a self-hosted open model so they
-cost ~nothing -- without changing your default `claude`.
+cost ~nothing - without changing your default `claude`.
 
 1. Stand up an endpoint that speaks the Anthropic `/v1/messages` API (vLLM-native, or a LiteLLM /
    claude-code-router gateway in front of an OpenAI-only model). Serving recipes are in the in-repo
@@ -197,7 +197,7 @@ cost ~nothing -- without changing your default `claude`.
    cp config.example/cheap-lane.env.example ~/.config/neurokeeper/cheap-lane.env   # then edit
    # CLAUDE_CHEAP_BASE_URL=http://your-host:8000  |  CLAUDE_CHEAP_MODEL=...  |  CLAUDE_CHEAP_TOKEN=local
    ```
-3. Run cheap work through the wrapper -- it sets `ANTHROPIC_BASE_URL` to your endpoint **for that
+3. Run cheap work through the wrapper - it sets `ANTHROPIC_BASE_URL` to your endpoint **for that
    invocation only**:
    ```bash
    claude-cheap -p "write a conventional-commit message for the staged diff"
@@ -205,8 +205,8 @@ cost ~nothing -- without changing your default `claude`.
 
 > [!warning] Two warnings that matter
 > **Billing:** pointing at a *paid* Anthropic-compatible gateway with a credential moves you off your
-> subscription onto per-token billing -- the point here is that traffic goes to *your* box (~zero marginal
-> cost). **Data egress:** everything in this lane goes to your endpoint -- keep it on a host you control
+> subscription onto per-token billing - the point here is that traffic goes to *your* box (~zero marginal
+> cost). **Data egress:** everything in this lane goes to your endpoint - keep it on a host you control
 > for sensitive content; never send regulated data or private model weights to a cloud you don't control.
 
 ---
@@ -218,13 +218,13 @@ cost ~nothing -- without changing your default `claude`.
 1. **Write the engine first.** A single deterministic script that computes facts/candidates (or applies
    a deterministic transform). Make it speak the contract: a `--json` flag and meaningful exit codes,
    and **report-by-default** (no writes unless `--apply`).
-2. **Classify it** on two axes -- *compute* (`deterministic` / `llm` / `hybrid`) and *effect*
+2. **Classify it** on two axes - *compute* (`deterministic` / `llm` / `hybrid`) and *effect*
    (`read-only` / `mutating`). That decides which layers you need; see
    [[explanation/index|the capability typology]].
 3. **If it mutates:** wire in the forbidden-zones check, an operator confirmation (per-row diff for
    multi-item changes), the audit write, a post-write verify, and any substrate preflight guard.
 4. **Add the metadata header** at the top of the script (the `@capability` / `@compute` / `@effect` /
-   ... block -- see the [Reference: metadata-header spec](../reference/)). This is what makes the engine
+   ... block - see the [Reference: metadata-header spec](../reference/)). This is what makes the engine
    discoverable.
 5. **Regenerate the registry** so the catalog reflects the new engine:
    ```bash
@@ -232,11 +232,11 @@ cost ~nothing -- without changing your default `claude`.
    neurokeeper registry-generate --write     # write the registry doc
    ```
 6. **Document it in the docs site.** Any user-facing capability must land in the wiki, not just the
-   README -- add a [Reference](../reference/) catalog entry and a How-to recipe. Docs that lag the tool
+   README - add a [Reference](../reference/) catalog entry and a How-to recipe. Docs that lag the tool
    are worse than no docs.
 7. **Add a test/fixture.** An engine without a test is experimental until it has one.
 8. **Add the adapter you use now** (e.g. a Claude Code skill that defers all logic to the engine). Add
-   an MCP binding only if a graduation trigger fires -- see [[explanation/index|the MCP ladder]].
+   an MCP binding only if a graduation trigger fires - see [[explanation/index|the MCP ladder]].
 
 ---
 

@@ -1,4 +1,4 @@
-# wiki/ -- neurokeeper documentation site (Quartz v4)
+# wiki/ - neurokeeper documentation site (Quartz v4)
 
 This directory holds the **source of the public documentation site**: the Quartz v4 config and the
 Markdown content, organised by the [Diataxis](https://diataxis.fr/) framework. The site is built with
@@ -51,7 +51,7 @@ npx quartz build --serve
 Alternatively, `npx quartz create` will scaffold a fresh Quartz project interactively; choose to start
 with an empty/links source, then copy the three items above in.
 
-> The repository's own CI does **not** run `npx`/`npm` for these files -- this scaffold is authored as
+> The repository's own CI does **not** run `npx`/`npm` for these files - this scaffold is authored as
 > plain source and is only built at publish time by the deploy workflow.
 
 ## How deploy works
@@ -67,7 +67,7 @@ with an empty/links source, then copy the three items above in.
 
 **Before the first deploy:** set repo **Settings > Pages > Source = "GitHub Actions"**, and replace the
 placeholder `baseUrl` in `quartz.config.ts` (and the footer URL in `quartz.layout.ts`) with your real
-GitHub Pages URL. Pages must be enabled for the deploy job to succeed -- a one-time setup step.
+GitHub Pages URL. Pages must be enabled for the deploy job to succeed - a one-time setup step.
 
 ## Editing the content
 
@@ -82,5 +82,5 @@ GitHub Pages URL. Pages must be enabled for the deploy job to succeed -- a one-t
 
 This scaffold targets **Quartz v4** (TypeScript config: `quartz.config.ts` / `quartz.layout.ts`). The
 live docs site (quartz.jzhao.xyz) now documents Quartz **v5**, whose config is YAML
-(`quartz.config.yaml`). If you upgrade to v5, the config format changes -- consult the current docs and
+(`quartz.config.yaml`). If you upgrade to v5, the config format changes - consult the current docs and
 migrate the config accordingly; the `content/` Markdown carries over.
