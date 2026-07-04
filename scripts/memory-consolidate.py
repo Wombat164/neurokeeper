@@ -25,8 +25,10 @@ Implements the consolidation spec (see prompts/memory-audit.md):
   importance     = recency * base_weight     (2.0 if PERMANENT tag, 1.5 if HIGH, else 1.0)
   archive candidate: importance < 0.15
 
-Usage: python scripts/memory-consolidate.py [--json|--terse|--check|--lint] [--today YYYY-MM-DD]
-  --lint : advisory index-compression + size-cap + link-integrity check (R11). Never blocks (exit 0).
+Usage: python scripts/memory-consolidate.py [--json|--terse|--check|--lint|--candidates] [--today YYYY-MM-DD]
+  --lint       : advisory index-compression + size-cap + link-integrity check (R11). Never blocks (exit 0).
+  --candidates : deterministic MERGE + CONTRADICTION candidate pairs (R14) as JSON, a narrowing
+                 pre-filter for a gated judge; the engine proposes candidates, never verdicts.
 """
 import os, re, sys, json, math
 from datetime import datetime, timezone
@@ -98,23 +100,87 @@ def caveman_lint(mem_text):
             findings.append((i, "long", f"{len(line)} chars > {CAVEMAN_MAX_ENTRY_CHARS}; compress"))
     return findings
 
+# --- R14: deterministic candidate detection. A cheap pre-filter that narrows the LLM's (or a human's)
+# read set from the whole store to a handful; the same deterministic-first + gated-judgment shape as the
+# R9 tag fuzzy-gate, on memory FILES instead of tags. These are CANDIDATES, never verdicts.
+_STOP_TOKENS = {"feedback", "reference", "project", "archive", "note", "the", "and", "for", "with"}
+_STANCE_PAIRS = [("always", "never"), ("must", "forbidden"), ("prefer", "avoid"),
+                 ("enable", "disable"), ("required", "prohibited"), ("keep", "remove"),
+                 ("allow", "block"), ("include", "exclude")]
+
+
+def _stem_tokens(fn):
+    return {t for t in re.split(r"[-_]", fn[:-3]) if len(t) > 2} - _STOP_TOKENS
+
+
+def _candidates(files):
+    """Deterministic MERGE + CONTRADICTION candidate pairs over the memory store.
+
+    MERGE: filename-stem token overlap (>=2 shared discriminating tokens) or a shared
+    `originSessionId` (two notes born of the same session). CONTRADICTION: feedback-rule pairs that
+    share a domain keyword AND carry opposite stance words (always/never, prefer/avoid, ...). Both are
+    narrowing pre-filters; the residue goes to a gated judge, not straight to an apply.
+    """
+    names = [n for n in files if n != "MEMORY.md" and not n.startswith("archive-")]
+    toks = {n: _stem_tokens(n) for n in names}
+    sess = {n: _frontmatter(files[n]["text"]).get("originsessionid", "") for n in names}
+
+    merge = []
+    for i, a in enumerate(names):
+        for b in names[i + 1:]:
+            signals = {}
+            shared = sorted(toks[a] & toks[b])
+            if len(shared) >= 2:
+                signals["stem_overlap"] = shared
+            if sess[a] and sess[a] == sess[b]:
+                signals["same_session"] = sess[a][:12]
+            if signals:
+                merge.append({"a": a, "b": b, "signals": signals})
+
+    def _stances(text):
+        low = text.lower()
+        out = set()
+        for pos, neg in _STANCE_PAIRS:
+            if re.search(rf"\b{re.escape(pos)}\b", low):
+                out.add(pos)
+            if re.search(rf"\b{re.escape(neg)}\b", low):
+                out.add(neg)
+        return out
+
+    feedbacks = [n for n in names if n.startswith("feedback") or files[n].get("type") == "feedback"]
+    contra = []
+    for i, a in enumerate(feedbacks):
+        for b in feedbacks[i + 1:]:
+            shared = sorted(toks[a] & toks[b])
+            if not shared:
+                continue
+            sa, sb = _stances(files[a]["text"]), _stances(files[b]["text"])
+            opp = [f"{pos}/{neg}" for pos, neg in _STANCE_PAIRS
+                   if (pos in sa and neg in sb) or (neg in sa and pos in sb)]
+            if opp:
+                contra.append({"a": a, "b": b, "shared_keywords": shared, "opposite_stances": opp})
+
+    return {"merge_candidates": merge, "contradiction_candidates": contra}
+
+
 def parse_args():
-    today, as_json, check, terse, lint = None, False, False, False, False
+    today, as_json, check, terse, lint, candidates = None, False, False, False, False, False
     for a in sys.argv[1:]:
         if a == "--json": as_json = True
         elif a == "--check": check = True
         elif a == "--terse": terse = True
         elif a == "--lint": lint = True
+        elif a == "--candidates": candidates = True
     if "--today" in sys.argv:
         i = sys.argv.index("--today")
         if i + 1 < len(sys.argv): today = sys.argv[i+1]
-    return today, as_json, check, terse, lint
+    return today, as_json, check, terse, lint, candidates
 
 def main():
     for _s in (sys.stdout, sys.stderr):            # cross-platform UTF-8 (Windows defaults cp1252)
         try: _s.reconfigure(encoding="utf-8")
         except Exception: pass
-    today_str, as_json, check, terse, lint = parse_args()
+    today_str, as_json, check, terse, lint, candidates = parse_args()
     # Graceful no-op if the memory store is unset/missing (avoids an os.listdir traceback in --terse/
     # --check/hook contexts). Preserves behaviour when the dir exists.
     if not os.path.isdir(MEM_DIR):
@@ -151,6 +217,9 @@ def main():
                      "type": fm.get("type", ""), "snoozed": _snoozed(fm, now)}
 
     names = list(files)
+    if candidates:                                  # R14: emit deterministic merge/contradiction candidates
+        print(json.dumps(_candidates(files), indent=2, ensure_ascii=False))
+        sys.exit(0)
     index_files = ["MEMORY.md"] + [f for f in names if f.startswith("archive-")]
     index_text = "\n".join(files[f]["text"] for f in index_files if f in files)
 

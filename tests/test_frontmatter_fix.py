@@ -83,3 +83,15 @@ def test_forbidden_zones_skip_on_apply(mini_vault, run_engine):
     assert json.loads(r.stdout)["files_changed"] == 0      # forbidden zone -> nothing reconciled
     assert _read(root, "02 - Projects/status-open.md") == before   # untouched
     assert "status: open" in before
+
+
+def test_audit_log_records_apply_and_verifies(mini_vault, run_engine, tmp_path):
+    import _audit
+    log = tmp_path / "audit.jsonl"
+    r = run_engine(ENGINE, "--apply", "--force", "--audit-log", str(log), env=mini_vault["env"])
+    assert r.returncode == 0, r.stderr
+    lines = [x for x in log.read_text(encoding="utf-8").splitlines() if x.strip()]
+    assert len(lines) == 1
+    rec = json.loads(lines[0])
+    assert rec["engine"] == "frontmatter-fix" and rec["action"] == "apply" and rec["files_changed"] >= 1
+    assert _audit.verify(str(log)) == (True, None)         # tamper-evident chain over the apply

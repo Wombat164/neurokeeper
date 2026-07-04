@@ -132,3 +132,23 @@ def test_read_only_invariant(tmp_path):
     _json(store)
     after = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in store.iterdir()}
     assert before == after                              # the analyzer proposes, never writes
+
+
+def test_candidates_detects_merge_and_contradiction(tmp_path):
+    store = _store(tmp_path, {
+        "MEMORY.md": "# index\n",
+        "feedback-cloud-taxonomy-v1.md": "---\nmetadata:\n  type: feedback\n---\nrule\n",
+        "feedback-cloud-taxonomy-v2.md": "---\nmetadata:\n  type: feedback\n---\nrule2\n",
+        "reference-alpha.md": "---\nmetadata:\n  originSessionId: sess-XYZ\n---\na\n",
+        "reference-beta.md": "---\nmetadata:\n  originSessionId: sess-XYZ\n---\nb\n",
+        "feedback-indent-tabs.md": "---\nmetadata:\n  type: feedback\n---\nalways use tabs for indent\n",
+        "feedback-indent-spaces.md": "---\nmetadata:\n  type: feedback\n---\nnever use tabs for indent\n",
+    })
+    r = _run(store, "--candidates")
+    assert r.returncode == 0, r.stderr
+    d = json.loads(r.stdout)
+    merges = {frozenset((c["a"], c["b"])) for c in d["merge_candidates"]}
+    assert frozenset(("feedback-cloud-taxonomy-v1.md", "feedback-cloud-taxonomy-v2.md")) in merges  # stem overlap
+    assert frozenset(("reference-alpha.md", "reference-beta.md")) in merges                          # same session
+    assert any({c["a"], c["b"]} == {"feedback-indent-tabs.md", "feedback-indent-spaces.md"}
+               and "always/never" in c["opposite_stances"] for c in d["contradiction_candidates"])

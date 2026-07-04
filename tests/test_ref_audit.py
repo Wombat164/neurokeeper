@@ -117,3 +117,38 @@ def test_since_bad_ref_exits_2(tmp_path):
     _git(v, "init", "-q")
     r = _run(v, "--json", "--since", "no-such-ref-xyz")
     assert r.returncode == 2, (r.returncode, r.stderr)          # loud failure, never silent wrong-scope
+
+
+def test_write_baseline_then_report_net_new(tmp_path):
+    v = _vault(tmp_path / "v", {"a.md": "no links\n", "b.md": "no links\n"})
+    bl = tmp_path / "bl.txt"
+    assert _run(v, "--write-baseline", str(bl)).returncode == 0 and bl.exists()
+    (v / "c.md").write_text("no links\n", encoding="utf-8")     # a NEW orphan after the baseline
+    d = _json(v, "--baseline", str(bl))
+    assert d["orphans"] == ["c.md"]                             # only the net-new orphan is reported
+    assert d["baseline"]["size"] > 0 and d["baseline"]["resolved"] == 0
+
+
+def test_baseline_reports_resolved_debt(tmp_path):
+    v = _vault(tmp_path / "v", {"a.md": "no links\n", "b.md": "no links\n"})
+    bl = tmp_path / "bl.txt"
+    _run(v, "--write-baseline", str(bl))
+    (v / "a.md").write_text("[[b]]\n", encoding="utf-8")        # fixes some baselined findings
+    assert _json(v, "--baseline", str(bl))["baseline"]["resolved"] > 0
+
+
+def test_baseline_missing_file_exits_2(tmp_path):
+    v = _vault(tmp_path / "v", {"a.md": "x\n"})
+    r = _run(v, "--json", "--baseline", str(tmp_path / "nope.txt"))
+    assert r.returncode == 2, (r.returncode, r.stderr)
+
+
+def test_sarif_emits_valid_2_1_0(tmp_path):
+    v = _vault(tmp_path / "v", {"a.md": "[[missing]]\n", "b.md": "no links\n"})
+    r = _run(v, "--sarif")
+    assert r.returncode in (0, 1), r.stderr
+    d = json.loads(r.stdout)
+    assert d["version"] == "2.1.0"
+    assert d["runs"][0]["tool"]["driver"]["name"] == "neurokeeper"
+    rules = {x["ruleId"] for x in d["runs"][0]["results"]}
+    assert "broken-link" in rules and "orphan" in rules      # findings flow through the IR into SARIF

@@ -129,8 +129,23 @@ Read-only - nothing is changed.
    `--since <git-ref>` scopes the reported findings (and the `--check` gate) to notes changed since the
    ref, so a PR is judged on the debt it introduces, not the vault's whole backlog. The scan stays
    graph-global; a bad ref or non-git tree exits 2 rather than silently scanning the wrong scope.
-
----
+4. Adopt on an already-dirty vault without a wall of failures: baseline the current debt once, then
+   gate on net-new only.
+   ```bash
+   neurokeeper ref-audit --write-baseline .neurokeeper-baseline   # accept today's findings, once
+   neurokeeper ref-audit --check --baseline .neurokeeper-baseline # CI fails only on NEW debt
+   ```
+   Commit the baseline file. The run tells you how many baselined findings you have since fixed, so
+   you can re-run `--write-baseline` to shrink it, rather than letting it become permanent debt.
+5. Surface findings in GitHub's Security tab (code-scanning) via SARIF:
+   ```yaml
+   - run: neurokeeper ref-audit --sarif --since origin/main > ref-audit.sarif
+   - uses: github/codeql-action/upload-sarif@v3
+     with: { sarif_file: ref-audit.sarif }
+   ```
+   `--sarif` renders through the Findings IR, so the same findings can later drive JUnit or a Bases view
+   without touching the engines. It composes with `--since` / `--baseline` (the SARIF reflects the
+   scoped set).
 
 ## Run one aggregate health check (`doctor`)
 

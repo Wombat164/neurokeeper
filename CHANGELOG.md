@@ -6,6 +6,29 @@ Full per-release notes: https://github.com/Wombat164/neurokeeper/releases
 
 ## [Unreleased]
 
+## [0.3.5] - 2026-07-04
+
+### Added
+- Reusable audit substrate (`scripts/_audit.py`): an append-only, hash-chained log any mutating engine
+  can write to for a tamper-evident record of what it applied, where each entry chains the prior one's
+  hash so a silent after-the-fact edit or reorder is detectable. `frontmatter-fix --apply --audit-log
+  <file>` is the first consumer. This is the audit-substrate half of R13; the memory-specific apply
+  primitives (archive / merge / demote) are a scoped follow-up.
+- `memory-consolidate --candidates`: deterministic MERGE and CONTRADICTION candidate detection over the
+  memory store (filename-stem token overlap or a shared `originSessionId` for merges; feedback-rule pairs
+  with a shared domain keyword plus opposite stance words for contradictions). A narrowing pre-filter for
+  a gated judge, the same deterministic-first shape as the tag fuzzy-gate, on memory files. (Roadmap R14.)
+- Findings IR + SARIF: `ref-audit --sarif` emits SARIF 2.1.0 (GitHub code-scanning) through a canonical
+  Findings IR (`scripts/_findings.py`: `engine` / `rule` / `severity` / `path` / `line` / `message` /
+  `fingerprint`), the single seam that future output formats (JUnit, a Bases view) render over instead
+  of per-engine serializers. Composes with `--since` / `--baseline`; reuses the baseline fingerprints as
+  SARIF `partialFingerprints`. (Roadmap R16.)
+- `ref-audit --baseline <file>` / `--write-baseline <file>`: adopt the tool on a dirty vault by
+  accepting the current findings as a baseline, then reporting (and gating `--check` on) only NET-NEW
+  debt. Findings are fingerprinted by semantic identity (a broken link keys on its missing target, not
+  the source path), so a note rename does not resurrect the baseline; the output nags with how many
+  baselined findings are now resolved, so the baseline shrinks instead of ossifying. (Roadmap R19.)
+
 ## [0.3.4] - 2026-07-04
 
 ### Added
@@ -83,7 +106,8 @@ Full per-release notes: https://github.com/Wombat164/neurokeeper/releases
 
 The earlier release line. See the GitHub releases for details.
 
-[Unreleased]: https://github.com/Wombat164/neurokeeper/compare/v0.3.4...HEAD
+[Unreleased]: https://github.com/Wombat164/neurokeeper/compare/v0.3.5...HEAD
+[0.3.5]: https://github.com/Wombat164/neurokeeper/releases/tag/v0.3.5
 [0.3.4]: https://github.com/Wombat164/neurokeeper/releases/tag/v0.3.4
 [0.3.3]: https://github.com/Wombat164/neurokeeper/releases/tag/v0.3.3
 [0.3.2]: https://github.com/Wombat164/neurokeeper/releases/tag/v0.3.2

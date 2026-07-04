@@ -17,7 +17,9 @@ line-edits on the frontmatter block (no YAML reparse -> preserves formatting/ord
   - redundant `date:` dropped ONLY where it equals `created:` (canonical = created/updated); date != created
     is LEFT + flagged (may be a meaningful content date)
 Read-only dry-run by default. --apply is mutating (assert_obsidian_closed guard) + git audit.
-Usage: python scripts/vault-frontmatter-fix.py [--apply] [--force] [--json]
+Usage: python scripts/vault-frontmatter-fix.py [--apply] [--force] [--json] [--dates] [--audit-log <file>]
+  --audit-log <file> : on --apply, append a tamper-evident record of the batch to a hash-chained log
+                       (scripts/_audit.py), on top of the git diff. Verifiable with _audit.verify().
 """
 import os, re, sys, json
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -32,6 +34,7 @@ except Exception:
 
 from _vault_lib import (VAULT, md_files, safe_write, VaultWriteError,   # shared core
                         in_forbidden_zone, force_utf8_stdout)
+from _audit import append as _audit_append  # noqa: E402  (reusable hash-chained audit substrate)
 SCHEMA = os.environ.get("FRONTMATTER_SCHEMA") or os.path.join(VAULT, ".claude/data/frontmatter-schema.yaml")
 EXAMPLE_SCHEMA = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                               "config.example", "frontmatter-schema.example.yaml")
@@ -71,6 +74,11 @@ def main():
     samples = []
     apply = "--apply" in args
     do_dates = "--dates" in args   # date-dedup is opt-in (ripples into dataview queries + templates)
+    audit_log = None
+    if "--audit-log" in args:
+        i = args.index("--audit-log")
+        if i + 1 < len(args) and not args[i + 1].startswith("-"):
+            audit_log = args[i + 1]
     if apply: assert_obsidian_closed("--force" in args)
 
     for p, rel in md_files():
@@ -124,6 +132,12 @@ def main():
                     safe_write(p, "---" + new_head + body)   # symlink/out-of-vault writes refused
                 except VaultWriteError as e:
                     print(f"  skip (guard): {e}", file=sys.stderr)
+
+    if apply and audit_log and stats["files_changed"] > 0:   # R13: tamper-evident record of the apply
+        from datetime import datetime, timezone
+        _audit_append(audit_log, {"ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                                  "engine": "frontmatter-fix", "action": "apply",
+                                  "files_changed": stats["files_changed"], "files": sorted(samples)})
 
     if "--json" in args:
         print(json.dumps(stats, indent=2)); return

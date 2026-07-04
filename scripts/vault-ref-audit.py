@@ -31,8 +31,14 @@ not-yet-created note is a legitimate forward-reference, so they do not fail `--c
 canvas / base broken refs are always real defects and fail `--check`.
 
 Usage: vault-ref-audit.py [--json] [--check] [--strict] [--since <git-ref>]
-  --since <git-ref> : report only findings for notes changed since <git-ref> (the scan stays
-                      graph-global; only the surfaced findings and the --check gate are narrowed).
+                          [--write-baseline <file> | --baseline <file>]
+  --since <git-ref>       : report only findings for notes changed since <git-ref> (the scan stays
+                            graph-global; only the surfaced findings and the --check gate are narrowed).
+  --write-baseline <file> : write the current findings as an accepted baseline, then exit 0.
+  --baseline <file>       : report only NET-NEW findings (those absent from the baseline), and gate
+                            --check on them, so a dirty vault can adopt the tool on day one.
+  --sarif                 : emit findings as SARIF 2.1.0 (GitHub code-scanning) via the Findings IR;
+                            composes with --since / --baseline (the SARIF is built from the scoped set).
   --check  : exit 1 on broken canvas / base refs (always-defects). orphans / dead-ends / media /
              unresolved-links are informational and do not fail.
   --strict : also count unresolved links as failures under --check.
@@ -50,6 +56,7 @@ try:
 except Exception:
     pass
 from _backend import get_backend  # noqa: E402
+from _findings import Finding, pkg_version, to_sarif  # noqa: E402
 
 NOTE_EXTS = {".md", ".markdown"}
 # Root config/meta notes -- resolvable as link targets, but their own links are NOT audited (e.g.
@@ -134,10 +141,81 @@ def _changed_since(vault, ref):
     return changed
 
 
+def _finding_fp(kind, x):
+    """A stable, human-readable fingerprint for one finding. Broken links/anchors key on the missing
+    TARGET (a renamed source note does not resurrect the issue); connectivity findings key on the note
+    path. Kept plain-text so a baseline file stays reviewable in a diff."""
+    if kind == "broken_link":
+        return f"broken_link|{x['target']}"
+    if kind == "broken_anchor":
+        return f"broken_anchor|{x['target']}"
+    if kind == "broken_canvas":
+        return f"broken_canvas|{x['canvas']}|{x['target']}"
+    if kind == "broken_base":
+        return f"broken_base|{x['base']}|{x['target']}"
+    return f"{kind}|{x}"          # orphan / dead_end / isolated / orphan_media: x is the note path
+
+
+_FP_LIST_KINDS = ("broken_link", "broken_anchor", "broken_canvas", "broken_base",
+                  "orphan", "dead_end", "isolated", "orphan_media")
+
+
+def _all_fps(lists):
+    """Sorted, de-duplicated fingerprints for every finding in a {kind: list} mapping."""
+    fps = set()
+    for kind in _FP_LIST_KINDS:
+        for x in lists[kind]:
+            fps.add(_finding_fp(kind, x))
+    return sorted(fps)
+
+
+def _load_baseline(path):
+    """Fingerprints from a baseline file (one per line; '#' comments and blanks ignored)."""
+    out = set()
+    try:
+        with open(path, encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    out.add(line)
+    except FileNotFoundError:
+        sys.stderr.write(f"ref-audit --baseline: file not found: {path}\n")
+        sys.exit(2)
+    return out
+
+
+def _to_findings(bl, ba, bc, bb, orph, de, iso, om, strict):
+    """Convert ref-audit's finding lists into the canonical Findings IR (scripts/_findings.py)."""
+    f = []
+    for x in bl:
+        f.append(Finding("ref-audit", "broken-link", "error" if strict else "warning", x["note"],
+                         None, f"link to '{x['target']}' resolves to no note", _finding_fp("broken_link", x)))
+    for x in ba:
+        f.append(Finding("ref-audit", "broken-anchor", "note", x["note"], None,
+                         f"anchor '{x['target']}' has no matching heading or block", _finding_fp("broken_anchor", x)))
+    for x in bc:
+        f.append(Finding("ref-audit", "broken-canvas-ref", "error", x["canvas"], None,
+                         f"canvas references missing file '{x['target']}'", _finding_fp("broken_canvas", x)))
+    for x in bb:
+        f.append(Finding("ref-audit", "broken-base-ref", "error", x["base"], None,
+                         f"base references missing '{x['target']}'", _finding_fp("broken_base", x)))
+    for p in orph:
+        f.append(Finding("ref-audit", "orphan", "note", p, None, "note has no inbound links", _finding_fp("orphan", p)))
+    for p in de:
+        f.append(Finding("ref-audit", "dead-end", "note", p, None, "note has no outbound links", _finding_fp("dead_end", p)))
+    for p in iso:
+        f.append(Finding("ref-audit", "isolated", "note", p, None, "note is fully disconnected", _finding_fp("isolated", p)))
+    for p in om:
+        f.append(Finding("ref-audit", "orphan-media", "note", p, None, "attachment referenced by nothing", _finding_fp("orphan_media", p)))
+    return f
+
+
 def main():
     args = sys.argv[1:]
     as_json, check, strict = "--json" in args, "--check" in args, "--strict" in args
     since = _arg_value(args, "--since")
+    baseline_path = _arg_value(args, "--baseline")
+    write_baseline = _arg_value(args, "--write-baseline")
     backend = get_backend()
 
     all_files = list(_walk_all(VAULT))
@@ -255,6 +333,22 @@ def main():
             broken_anchors.append({"note": src, "target": f"{tgt}#{anchor}"})
     broken_anchors.sort(key=lambda b: b["note"])
 
+    # --baseline / --write-baseline: track known debt so a run reports only NET-NEW findings. Computed
+    # against the WHOLE-vault findings (before any --since scoping) so the baseline is complete.
+    _lists_full = {"broken_link": broken_links, "broken_anchor": broken_anchors,
+                   "broken_canvas": broken_canvas, "broken_base": broken_base,
+                   "orphan": orphans, "dead_end": dead_ends, "isolated": isolated,
+                   "orphan_media": orphan_media}
+    if write_baseline:
+        fps = _all_fps(_lists_full)
+        with open(write_baseline, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write("# neurokeeper ref-audit baseline: accepted findings (CI gates on NET-NEW only).\n")
+            fh.write("# Regenerate after fixing debt to shrink it. One fingerprint per line.\n")
+            fh.write("\n".join(fps) + ("\n" if fps else ""))
+        sys.stderr.write(f"ref-audit: wrote {len(fps)} accepted findings to baseline {write_baseline}\n")
+        sys.exit(0)
+    current_fps = set(_all_fps(_lists_full)) if baseline_path else set()
+
     # --since: filter the REPORTED findings to notes changed vs a git ref. The scan stays graph-global
     # (a renamed target breaks backlinks in unchanged files, so the whole graph must be built); only the
     # surfaced findings, and therefore the --check gate, are narrowed to the diff. Ideal for pre-commit / CI.
@@ -272,6 +366,21 @@ def main():
         stem_collisions = [c for c in stem_collisions if any(p in changed for p in c["paths"])]
         scope = {"since": since, "changed_paths": len(changed), "scanned_notes": len(notes)}
 
+    # --baseline: drop findings already accepted in the baseline file, so only NET-NEW debt is reported
+    # (and gates --check). A finding fixed since the baseline was written is counted as "resolved".
+    baseline_info = None
+    if baseline_path:
+        base = _load_baseline(baseline_path)
+        broken_links = [x for x in broken_links if _finding_fp("broken_link", x) not in base]
+        broken_anchors = [x for x in broken_anchors if _finding_fp("broken_anchor", x) not in base]
+        broken_canvas = [x for x in broken_canvas if _finding_fp("broken_canvas", x) not in base]
+        broken_base = [x for x in broken_base if _finding_fp("broken_base", x) not in base]
+        orphans = [p for p in orphans if _finding_fp("orphan", p) not in base]
+        dead_ends = [p for p in dead_ends if _finding_fp("dead_end", p) not in base]
+        isolated = [p for p in isolated if _finding_fp("isolated", p) not in base]
+        orphan_media = [p for p in orphan_media if _finding_fp("orphan_media", p) not in base]
+        baseline_info = {"file": baseline_path, "size": len(base), "resolved": len(base - current_fps)}
+
     # Unresolved wikilinks are often INTENTIONAL in Obsidian (forward-links to not-yet-created notes), so
     # --check fails only on canvas/base broken refs (always-defects) unless --strict adds unresolved links.
     hard_defects = len(broken_canvas) + len(broken_base) + (len(broken_links) if strict else 0)
@@ -284,9 +393,14 @@ def main():
         "broken_links": broken_links, "broken_canvas": broken_canvas, "broken_base": broken_base,
         "broken_anchors": broken_anchors,
         "orphans": orphans, "dead_ends": dead_ends, "isolated": isolated, "orphan_media": orphan_media,
-        "stem_collisions": stem_collisions, "scope": scope,
+        "stem_collisions": stem_collisions, "scope": scope, "baseline": baseline_info,
     }
 
+    if "--sarif" in args:                               # canonical Findings IR -> SARIF 2.1.0
+        findings = _to_findings(broken_links, broken_anchors, broken_canvas, broken_base,
+                                orphans, dead_ends, isolated, orphan_media, strict)
+        print(json.dumps(to_sarif(findings, tool_version=pkg_version()), indent=2, ensure_ascii=False))
+        sys.exit(1 if (check and hard_defects) else 0)
     if as_json:
         print(json.dumps(result, indent=2, ensure_ascii=False))
         sys.exit(1 if (check and hard_defects) else 0)
@@ -311,6 +425,10 @@ def main():
     if scope:
         print(f"    scope: findings for {scope['changed_paths']} path(s) changed since {scope['since']} "
               f"(full graph scanned over {scope['scanned_notes']} notes)")
+    if baseline_info:
+        b = baseline_info
+        nag = f", {b['resolved']} now resolved (rewrite --write-baseline to shrink)" if b["resolved"] else ""
+        print(f"    baseline {b['file']}: {b['size']} accepted, reporting net-new only{nag}")
     _section("unresolved links (incl. intentional forward-links; informational)", broken_links,
              lambda b: f"{b['note']}  ->  {b['target']}")
     _section("broken canvas refs", broken_canvas, lambda b: f"{b['canvas']}  ->  {b['target']}", 15)
