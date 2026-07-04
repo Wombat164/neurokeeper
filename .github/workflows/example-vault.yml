@@ -1,0 +1,26 @@
+# Dogfood: run neurokeeper's own aggregate health check against the bundled example vault on every push.
+# examples/vault/ is a tiny synthetic Obsidian vault; a green badge proves the CLI installs and runs clean.
+name: example-vault
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  doctor:
+    name: neurokeeper doctor on examples/vault
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+        with:
+          python-version: '3.13'
+      - run: pip install -e .
+      - name: neurokeeper doctor --check
+        env:
+          VAULT_ROOT: examples/vault
+        run: neurokeeper doctor --check

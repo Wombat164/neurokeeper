@@ -15,6 +15,7 @@
 
 <p align="center">
   <a href="https://github.com/Wombat164/neurokeeper/actions/workflows/test.yml"><img src="https://github.com/Wombat164/neurokeeper/actions/workflows/test.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/Wombat164/neurokeeper/actions/workflows/example-vault.yml"><img src="https://github.com/Wombat164/neurokeeper/actions/workflows/example-vault.yml/badge.svg" alt="example-vault"></a>
   <a href="https://github.com/Wombat164/neurokeeper/releases"><img src="https://img.shields.io/github/v/release/Wombat164/neurokeeper" alt="release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/Wombat164/neurokeeper" alt="License: MIT"></a>
   <a href="https://wombat164.github.io/neurokeeper/"><img src="https://img.shields.io/badge/docs-wombat164.github.io-blue" alt="docs"></a>
@@ -27,6 +28,10 @@
   <a href="#gate-a-vault-in-ci-pre-commit--github-action">CI gate</a> &middot;
   <a href="https://wombat164.github.io/neurokeeper/">Docs site</a> &middot;
   <a href="CONTRIBUTING.md">Contributing</a>
+</p>
+
+<p align="center">
+  <img src="assets/quickstart.gif" alt="pipx install neurokeeper, then neurokeeper doctor: a clean run-receipt over a vault" width="720">
 </p>
 
 ---
