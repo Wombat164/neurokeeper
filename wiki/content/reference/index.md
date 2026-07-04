@@ -70,7 +70,9 @@ tags:
 - **What it does:** applies the schema's reconciliation maps (e.g. normalising status / maturity /
   horizon values) by **surgical line-edits** on the frontmatter block, preserving formatting and field
   order (no YAML reparse).
-- **Contract:** `--apply`, `--force`, `--json` (report-only without `--apply`).
+- **Contract:** `--apply`, `--force`, `--json` (report-only without `--apply`), and `--dates` --
+  opt-in `date` -> `created` field dedup (kept opt-in because it ripples into Dataview queries and
+  templates that still read `date`).
 - **Audit:** git. **Forbidden-zones:** attended by default; optional `VAULT_FORBIDDEN_ZONES` skip.
 - **Env:** `VAULT_ROOT`, `FRONTMATTER_SCHEMA`, `VAULT_FORBIDDEN_ZONES`.
 
@@ -99,7 +101,9 @@ tags:
   renames the file, so links never break. Protected/legal/write-once folders are excluded from rename
   but still scanned as link sources.
 - **Contract:** `--json`, `--apply`, `--force`, plus a `dedash` mode (light: only normalise dash
-  separators, keep case) vs the default `kebab` mode (full lowercase-hyphen slug).
+  separators, keep case) vs the default `kebab` mode (full lowercase-hyphen slug). Scope with
+  `--under <folder>` to pilot the rename on one subtree, and `--no-exclusions` to override the
+  `VAULT_NORENAME_ZONES` guard (rename even protected folders -- deliberate, rarely wanted).
 - **Audit:** git. **Forbidden-zones:** rename-protected via `VAULT_NORENAME_ZONES`; optional
   `VAULT_FORBIDDEN_ZONES` skip (never writes those files).
 - **Env:** `VAULT_ROOT`, `VAULT_NORENAME_ZONES`, `VAULT_FORBIDDEN_ZONES`.
@@ -115,7 +119,14 @@ tags:
   curve exactly. Reference count still multiplies the half-life (`base * (1 + log2(refs + 1))`).
 - **Snooze (since 2026-07-04):** a `reviewed: YYYY-MM-DD` frontmatter stamp suppresses the stale flag
   for 120 days (override with `ttl: <days>`). Use it after deliberately re-validating an old note.
-- **Contract:** `--json`, `--check`, `--terse`, `--today YYYY-MM-DD`.
+- **Index lint (since 2026-07-04):** `--lint` is an advisory, no-model check that a memory *index*
+  file -- the always-loaded entrypoint that a harness reads first -- stays inside its read cap and
+  reads as a tight index. Three axes: the two-axis load cap (200 lines OR 25000 bytes, whichever comes
+  first, warn at a headroom target); one-line-per-entry telegraphic compression (no ` -- ` / ` -> `
+  separators, entry-length ceiling); and link integrity. Wikilink targets and backtick paths are
+  stripped before the separator check, so a legitimate dash inside a real note name is never flagged.
+  Never blocks (exit 0) -- a nudge, not a gate.
+- **Contract:** `--json`, `--check`, `--terse`, `--lint`, `--today YYYY-MM-DD`.
 - **Audit (capability):** append-only, hash-chained log (not git -- see [[explanation/index]]).
 - **Env:** `CLAUDE_MEMORY_DIR`, optional `VAULT_INBOX_DIR`, `VAULT_ROOT`.
 

@@ -55,7 +55,11 @@ multi-metric score) and an evidence-backed consolidation proposal.
    neurokeeper memory-consolidate            # human-readable report
    neurokeeper memory-consolidate --json     # machine-readable
    neurokeeper memory-consolidate --terse    # one-line health summary (good for a session hook)
+   neurokeeper memory-consolidate --lint     # advisory: is the always-loaded index within its cap + tight?
    ```
+   `--lint` is the check to wire into a session-start hook or pre-commit for the *index* file itself:
+   it flags an index that has grown past the harness read cap (so the tail is silently dropped) or
+   drifted from the one-line-per-entry telegraphic style. It never blocks (exit 0) -- a nudge, not a gate.
 2. Read the proposal. Every number is computed from the real filesystem, so it is reproducible and
    cannot be fabricated -- this is the whole point of pushing the counting into an engine.
 3. To act on it with judgment + confirmation, use the **memory-audit** capability through an adapter
@@ -156,7 +160,7 @@ existing markdown ecosystem instead of duplicating it.
    ```yaml
    repos:
      - repo: https://github.com/Wombat164/neurokeeper
-       rev: v0.3.0
+       rev: v0.3.2
        hooks: [{ id: neurokeeper-doctor }]   # or: neurokeeper-ref-audit
    ```
    pre-commit installs the package in an isolated venv and runs the CLI against the repo root.
@@ -166,7 +170,7 @@ existing markdown ecosystem instead of duplicating it.
    - uses: actions/checkout@v4
    - uses: DavidAnson/markdownlint-cli2-action@v16    # markdown style (not neurokeeper's job)
    - uses: lycheeverse/lychee-action@v2               # external link existence (not neurokeeper's job)
-   - uses: Wombat164/neurokeeper@v0.3.0            # broken wikilinks/.canvas/.base, orphans, health
+   - uses: Wombat164/neurokeeper@v0.3.2            # broken wikilinks/.canvas/.base, orphans, health
      with: { vault-path: ".", engine: "doctor", strict: "false" }
    ```
 3. Understand what fails it. The exit code follows the doctor contract: broken `.canvas`/`.base` refs or an
