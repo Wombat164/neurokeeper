@@ -16,12 +16,15 @@ def test_lint_offvocab_and_outbox_exemption(mini_vault, run_engine):
     res = json.loads(r.stdout)
 
     status = res["offvocab"]["status"]
-    assert status.get("open") == 1
-    assert status.get("in-review") == 1
-    assert status.get("approved") == 1
+    # issue #3: offvocab.<field>.<value> is now the LIST of offending file paths (per-value count = len)
+    assert isinstance(status.get("open"), list) and len(status["open"]) == 1
+    assert len(status.get("in-review", [])) == 1
+    assert len(status.get("approved", [])) == 1
     # Two notes have status:pending; the note_type:outbox one is EXEMPT, so only the
-    # by-path outbox note is flagged. Count==1 proves the note_type exemption works.
-    assert status.get("pending") == 1
+    # by-path outbox note is flagged. len==1 proves the note_type exemption works.
+    assert len(status.get("pending", [])) == 1
+    # the emitted values are actionable .md FILE paths (not the containing dir) - issue #3
+    assert all(p.endswith(".md") for vals in status.values() for p in vals)
 
     assert res["counts"]["parse_err"] == 1          # malformed.md
     assert res["counts"]["missing_note_type"] >= 1

@@ -25,7 +25,8 @@ Implements the consolidation spec (see prompts/memory-audit.md):
   importance     = recency * base_weight     (2.0 if PERMANENT tag, 1.5 if HIGH, else 1.0)
   archive candidate: importance < 0.15
 
-Usage: python scripts/memory-consolidate.py [--json] [--today YYYY-MM-DD]
+Usage: python scripts/memory-consolidate.py [--json|--terse|--check|--lint] [--today YYYY-MM-DD]
+  --lint : advisory index-compression + size-cap + link-integrity check (R11). Never blocks (exit 0).
 """
 import os, re, sys, json, math
 from datetime import datetime, timezone
@@ -40,6 +41,9 @@ MEMORY_LINE_LIMIT = 180   # warn threshold; HARD harness cap = 200 lines
 # either axis is silently dropped from context. The prior 45000 was 1.8x the real cap, so
 # this reported "OK" while the loader truncated the index. Aim <=17500 / <=140 for headroom.
 BYTES_BUDGET = 25000  # HARD harness cap; aim <=17500 for headroom
+LINE_CAP, LINE_TARGET = 200, 140        # hard harness cap / headroom target (for --lint)
+BYTES_CAP, BYTES_TARGET = 25000, 17500  # hard harness cap / headroom target (for --lint)
+CAVEMAN_MAX_ENTRY_CHARS = 260           # dense archive-rollup pointers may run long; flag only outliers
 # Per-note-type BASE half-life (days); the reference-count bonus multiplies on top:
 #   half_life = base * (1 + log2(refs + 1)).  Default base 90 reproduces the prior
 #   90 + 90*log2(refs+1) curve EXACTLY, so untyped stores are unchanged.
@@ -69,22 +73,48 @@ def _snoozed(fm, now):
     ttl_days = int(ttl) if ttl.isdigit() else SNOOZE_DEFAULT_DAYS
     return (now - rdate).total_seconds() / 86400.0 <= ttl_days
 
+def _strip_protected(s):
+    # Remove [[wikilink targets]], `backtick spans`, and ](link-target) so the separator/arrow
+    # checks do NOT false-positive on ' -- ' that is legitimately part of a real note name or path.
+    # Display text of links is KEPT, so a ' -- ' inside [Display Title] IS still flagged.
+    s = re.sub(r"\[\[[^\]]*\]\]", "", s)   # wikilink targets
+    s = re.sub(r"`[^`]*`", "", s)           # backtick spans (paths/code)
+    s = re.sub(r"\]\([^)]*\)", "]", s)      # markdown link targets, keep display
+    return s
+
+def caveman_lint(mem_text):
+    """Deterministic index-compression + entry-shape check on the entrypoint index.
+    Returns list of (lineno, kind, message). Advisory; never mutates."""
+    findings = []
+    for i, line in enumerate(mem_text.splitlines(), 1):
+        if not line.startswith("- "):
+            continue  # only list entries; headers/blockquotes exempt
+        probe = _strip_protected(line)
+        if " -- " in probe:
+            findings.append((i, "dash-sep", "use ' - ' not ' -- '"))
+        if " -> " in probe:
+            findings.append((i, "arrow", "use ' > ' not ' -> '"))
+        if len(line) > CAVEMAN_MAX_ENTRY_CHARS:
+            findings.append((i, "long", f"{len(line)} chars > {CAVEMAN_MAX_ENTRY_CHARS}; compress"))
+    return findings
+
 def parse_args():
-    today, as_json, check, terse = None, False, False, False
+    today, as_json, check, terse, lint = None, False, False, False, False
     for a in sys.argv[1:]:
         if a == "--json": as_json = True
         elif a == "--check": check = True
         elif a == "--terse": terse = True
+        elif a == "--lint": lint = True
     if "--today" in sys.argv:
         i = sys.argv.index("--today")
         if i + 1 < len(sys.argv): today = sys.argv[i+1]
-    return today, as_json, check, terse
+    return today, as_json, check, terse, lint
 
 def main():
     for _s in (sys.stdout, sys.stderr):            # cross-platform UTF-8 (Windows defaults cp1252)
         try: _s.reconfigure(encoding="utf-8")
         except Exception: pass
-    today_str, as_json, check, terse = parse_args()
+    today_str, as_json, check, terse, lint = parse_args()
     # Graceful no-op if the memory store is unset/missing (avoids an os.listdir traceback in --terse/
     # --check/hook contexts). Preserves behaviour when the dir exists.
     if not os.path.isdir(MEM_DIR):
@@ -258,6 +288,27 @@ def main():
                   f"- run consolidation (not blocking)")
         else:
             print(f"memory OK: {mem_bytes//1024}KB, 0 defects")
+        sys.exit(0)
+
+    if lint:
+        # ADVISORY index-compression + health + cap check (R11). Never blocks: exit 0.
+        issues = caveman_lint(mem_text)
+        caps = []
+        if mem_lines > LINE_CAP:      caps.append(f"{mem_lines} lines > {LINE_CAP} HARD CAP (TRUNCATING)")
+        elif mem_lines > LINE_TARGET: caps.append(f"{mem_lines} lines > {LINE_TARGET} headroom target")
+        if mem_bytes > BYTES_CAP:      caps.append(f"{mem_bytes//1024}KB > 25KB HARD CAP (TRUNCATING)")
+        elif mem_bytes > BYTES_TARGET: caps.append(f"{mem_bytes//1024}KB > 17.5KB headroom target")
+        if defects: caps.append(f"{len(broken)} broken-links, {len(orphans)} orphans")
+        if not caps and not issues:
+            print(f"memory-lint OK: {mem_lines}L/{mem_bytes//1024}KB, caveman-clean, 0 defects")
+            sys.exit(0)
+        print("memory-lint (advisory - not blocking):")
+        for m in caps:
+            print(f"  CAP   {m}")
+        for ln, kind, msg in issues[:25]:
+            print(f"  L{ln:<4} {kind:<9} {msg}")
+        if len(issues) > 25:
+            print(f"  ... +{len(issues)-25} more caveman findings")
         sys.exit(0)
 
     if as_json:
