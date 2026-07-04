@@ -1,0 +1,51 @@
+name: Bug report
+description: An engine crashes, produces wrong output, or contradicts the docs
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Security issues do NOT go here: use the private
+        vulnerability reporting form under the Security tab (see SECURITY.md).
+  - type: input
+    id: engine
+    attributes:
+      label: Engine / entry point
+      description: Which engine or component (name-reconcile, tag-reconcile, frontmatter-lint, frontmatter-fix, set-note-type, taxonomy-inventory, ref-audit, doctor, memory-consolidate, registry-generate, CLI dispatcher, plugin adapter, ...)
+      placeholder: "ref-audit"
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you ran, what you expected, what you got. Paste the exact command and output.
+      placeholder: |
+        Command:
+        Expected:
+        Got:
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: The smallest notes/config that shows the problem. Strip anything private BEFORE pasting.
+    validations:
+      required: false
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Python version, install mode (editable / plugin), and relevant versions.
+      placeholder: "Windows 11, Python 3.11, pip install -e ., Obsidian 1.6"
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I ran the test suite (pytest -q) and this is not already covered by a failing test
+        - label: This report contains no private or organisation-internal content
+          required: true

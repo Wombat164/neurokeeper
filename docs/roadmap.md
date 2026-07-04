@@ -241,8 +241,26 @@ baseline fingerprint must be content/rule-based (R16's `fingerprint`), NOT raw p
 does not resurrect the whole file as new; and every run must emit a shrink-nag (baseline size + delta)
 to avoid the rubocop_todo antipattern where the baseline becomes permanent, never-shrinking debt.
 
+### R20. Deterministic wiki-coverage gate (docs can't lag the tool)
+Field receipt (2026-07-04): memory-consolidate `--lint` shipped (R11) but the Quartz wiki's reference
+catalog didn't gain the flag until a follow-up pass - the exact "docs lag the tool" drift the
+add-a-new-engine how-to warns against, with nothing enforcing it. `registry-generate` already harvests
+every engine's `@capability` (+ contract) from its metadata header, so the CATALOG is anti-rot by
+construction; extend that anti-rot to the DOCS SITE. Add a deterministic check (a test, or a `doctor`
+sub-check) that every registered capability - and ideally each documented `--flag` in its contract -
+appears in the wiki reference catalog, failing CI when an engine or flag ships undocumented. Same
+deterministic-gate doctrine as the rest of this roadmap: the wiki stops drifting because a machine
+refuses the merge, not because someone remembered. Cheaper and stronger than a scheduled rebuild - a
+timer re-publishes stale content on a cadence; a gate blocks the staleness at the source.
+
 ## Shipped this cycle (2026-07-04)
 
+- **R20 wiki-coverage gate** (`tests/test_wiki_coverage.py`): a deterministic test that derives ground
+  truth from code (cli.py's dispatch map + each engine's declared `--flag` literals) and fails CI when
+  a user-facing engine or flag is absent from the wiki reference. Immediately paid for itself: on
+  authoring it found three real undocumented flags (`name-reconcile --under` / `--no-exclusions`,
+  `frontmatter-fix --dates`) that had drifted, now documented. Two explicit escape hatches (INTERNAL
+  subcommands, IGNORE_FLAGS) so omission is always a visible choice.
 - memory-consolidate: per-note-type base half-lives (user 365 / reference 270 / feedback 180 /
   project 90; untyped identical to the prior curve) + `reviewed:`/`ttl:` snooze stamps.
 - ref-audit: `[[note#heading]]` / `[[note#^block]]` anchor resolution (broken anchors,

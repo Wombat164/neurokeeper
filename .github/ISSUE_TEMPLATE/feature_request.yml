@@ -1,0 +1,49 @@
+name: Feature request
+description: Propose a capability or an improvement
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before proposing: docs/roadmap.md lists what is planned, and the ADRs
+        under docs/ (adr-0001, adr-0002, ...) record why things are the way they
+        are.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What can't you do today, or what is painful? Describe the workflow, not the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed shape
+      description: What would it look like (CLI flag, config key, new engine)? Prior art in other tools is very welcome; this project prefers adopting or imitating proven patterns over inventing.
+    validations:
+      required: false
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - "link/reference audit (ref-audit)"
+        - "frontmatter (lint/fix)"
+        - "tags (tag-reconcile)"
+        - "naming / rename (name-reconcile)"
+        - "note-type / taxonomy"
+        - "memory-audit (memory-consolidate)"
+        - "doctor / aggregate health"
+        - "CI adapters (pre-commit / GitHub Action)"
+        - "packaging / CLI"
+        - "docs / wiki"
+        - "other"
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: This fits the domain-neutral portable core; consumer-specific behaviour belongs in an adapter/config
+          required: true
