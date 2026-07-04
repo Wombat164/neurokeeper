@@ -68,3 +68,24 @@ def test_frontmatter_lint_applicable_with_schema(tmp_path):
     v = _vault(tmp_path / "v", {"a.md": "---\n---\ntext\n"})
     states, _, _ = _states(v, FRONTMATTER_SCHEMA=EXAMPLE_SCHEMA)
     assert states["frontmatter-lint"] != "skipped"      # config present -> runs (advisory, cannot fail)
+
+
+def _norm(p):
+    return os.path.normcase(os.path.normpath(p))
+
+
+def test_run_receipt_records_what_ran(tmp_path):
+    v = _vault(tmp_path / "v", {"a.md": "[[b]]\n", "b.md": "x\n"})
+    r = json.loads(_run(v, "--json").stdout)["receipt"]
+    assert r["tool"] == "neurokeeper"
+    assert r["files_scanned"] == 2                       # the actual scanned count
+    assert _norm(r["root"]) == _norm(str(v))             # the actual root, absolute
+    assert "taxonomy-inventory" in r["engines_run"] and "ref-audit" in r["engines_run"]
+    assert isinstance(r["duration_ms"], int)
+
+
+def test_run_receipt_zero_files_is_loud(tmp_path):
+    # a wrong/empty root scans nothing; the receipt surfaces it instead of a silently-green run
+    empty = _vault(tmp_path / "empty", {})
+    assert json.loads(_run(empty, "--json").stdout)["receipt"]["files_scanned"] == 0
+    assert "0 files: check VAULT_ROOT" in _run(empty).stdout

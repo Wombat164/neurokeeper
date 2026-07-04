@@ -6,11 +6,15 @@ fail); META files (CLAUDE.md) are not audited; external URLs + intra-doc anchors
 """
 import json
 import os
+import shutil
 import subprocess
 import sys
 
+import pytest
+
 HARNESS = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ENGINE = os.path.join(HARNESS, "scripts", "vault-ref-audit.py")
+_HAS_GIT = shutil.which("git") is not None
 
 
 def _vault(root, files):
@@ -85,3 +89,31 @@ def test_stem_collisions(tmp_path):
     assert "note" in stems and "unique" not in stems
     coll = next(c for c in d["stem_collisions"] if c["stem"] == "note")
     assert coll["paths"] == ["A/note.md", "B/note.md"]
+
+
+def _git(vault, *a):
+    subprocess.run(["git", "-C", str(vault), *a], check=True, capture_output=True)
+
+
+@pytest.mark.skipif(not _HAS_GIT, reason="git required for --since")
+def test_since_filters_findings_to_changed_notes(tmp_path):
+    v = _vault(tmp_path / "v", {"keep.md": "no links\n", "old.md": "no links\n"})
+    _git(v, "init", "-q"); _git(v, "config", "user.email", "t@t"); _git(v, "config", "user.name", "t")
+    _git(v, "add", "-A"); _git(v, "commit", "-q", "-m", "base")
+    (v / "old.md").write_text("no links (touched)\n", encoding="utf-8")   # modify old.md only
+
+    full = _json(v)
+    assert {"keep.md", "old.md"} <= set(full["orphans"]) and full["scope"] is None
+
+    scoped = _json(v, "--since", "HEAD")
+    assert scoped["orphans"] == ["old.md"]                      # only the changed note is reported
+    assert scoped["scope"]["since"] == "HEAD"
+    assert scoped["scope"]["scanned_notes"] == 2                # the whole graph was still scanned
+
+
+@pytest.mark.skipif(not _HAS_GIT, reason="git required for --since")
+def test_since_bad_ref_exits_2(tmp_path):
+    v = _vault(tmp_path / "v", {"a.md": "x\n"})
+    _git(v, "init", "-q")
+    r = _run(v, "--json", "--since", "no-such-ref-xyz")
+    assert r.returncode == 2, (r.returncode, r.stderr)          # loud failure, never silent wrong-scope

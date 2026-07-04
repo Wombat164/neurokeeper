@@ -124,7 +124,11 @@ Read-only - nothing is changed.
    ```bash
    neurokeeper ref-audit --check            # exit 1 only on broken canvas/base refs
    neurokeeper ref-audit --check --strict   # also fail on unresolved links (for strict vaults)
+   neurokeeper ref-audit --check --since origin/main   # only fail on defects in notes changed vs main
    ```
+   `--since <git-ref>` scopes the reported findings (and the `--check` gate) to notes changed since the
+   ref, so a PR is judged on the debt it introduces, not the vault's whole backlog. The scan stays
+   graph-global; a bad ref or non-git tree exits 2 rather than silently scanning the wrong scope.
 
 ---
 

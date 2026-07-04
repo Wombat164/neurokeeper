@@ -30,7 +30,9 @@ Unresolved wikilinks are reported but are INFORMATIONAL by default: in Obsidian 
 not-yet-created note is a legitimate forward-reference, so they do not fail `--check` unless `--strict`.
 canvas / base broken refs are always real defects and fail `--check`.
 
-Usage: vault-ref-audit.py [--json] [--check] [--strict]
+Usage: vault-ref-audit.py [--json] [--check] [--strict] [--since <git-ref>]
+  --since <git-ref> : report only findings for notes changed since <git-ref> (the scan stays
+                      graph-global; only the surfaced findings and the --check gate are narrowed).
   --check  : exit 1 on broken canvas / base refs (always-defects). orphans / dead-ends / media /
              unresolved-links are informational and do not fail.
   --strict : also count unresolved links as failures under --check.
@@ -96,9 +98,46 @@ def _walk_all(vault):
             yield (rel + "/" + f) if rel else f
 
 
+def _arg_value(args, flag):
+    """The token after `flag`, or None. Refs never start with '-', so a bare flag yields None."""
+    if flag in args:
+        i = args.index(flag)
+        if i + 1 < len(args) and not args[i + 1].startswith("-"):
+            return args[i + 1]
+    return None
+
+
+def _changed_since(vault, ref):
+    """Set of vault-relative posix paths changed vs `ref` (git diff --name-only). Exits 2 on git error
+    rather than silently scanning the wrong scope. Includes staged + unstaged changes vs the ref."""
+    import subprocess
+
+    def _git(*a):
+        return subprocess.run(["git", "-C", vault, *a], capture_output=True, text=True,
+                              encoding="utf-8", errors="replace")
+
+    top = _git("rev-parse", "--show-toplevel")
+    if top.returncode != 0:
+        sys.stderr.write(f"ref-audit --since: '{vault}' is not inside a git repository.\n")
+        sys.exit(2)
+    root = top.stdout.strip()
+    diff = _git("diff", "--name-only", ref)
+    if diff.returncode != 0:
+        sys.stderr.write(f"ref-audit --since: 'git diff {ref}' failed: {diff.stderr.strip()}\n")
+        sys.exit(2)
+    changed = set()
+    for line in diff.stdout.splitlines():
+        line = line.strip()
+        if line:
+            rel = os.path.relpath(os.path.join(root, line), vault).replace(os.sep, "/")
+            changed.add(rel)
+    return changed
+
+
 def main():
     args = sys.argv[1:]
     as_json, check, strict = "--json" in args, "--check" in args, "--strict" in args
+    since = _arg_value(args, "--since")
     backend = get_backend()
 
     all_files = list(_walk_all(VAULT))
@@ -216,6 +255,23 @@ def main():
             broken_anchors.append({"note": src, "target": f"{tgt}#{anchor}"})
     broken_anchors.sort(key=lambda b: b["note"])
 
+    # --since: filter the REPORTED findings to notes changed vs a git ref. The scan stays graph-global
+    # (a renamed target breaks backlinks in unchanged files, so the whole graph must be built); only the
+    # surfaced findings, and therefore the --check gate, are narrowed to the diff. Ideal for pre-commit / CI.
+    scope = None
+    if since:
+        changed = _changed_since(VAULT, since)
+        broken_links = [x for x in broken_links if x["note"] in changed]
+        broken_canvas = [x for x in broken_canvas if x["canvas"] in changed]
+        broken_base = [x for x in broken_base if x["base"] in changed]
+        broken_anchors = [x for x in broken_anchors if x["note"] in changed]
+        orphans = [p for p in orphans if p in changed]
+        dead_ends = [p for p in dead_ends if p in changed]
+        isolated = [p for p in isolated if p in changed]
+        orphan_media = [p for p in orphan_media if p in changed]
+        stem_collisions = [c for c in stem_collisions if any(p in changed for p in c["paths"])]
+        scope = {"since": since, "changed_paths": len(changed), "scanned_notes": len(notes)}
+
     # Unresolved wikilinks are often INTENTIONAL in Obsidian (forward-links to not-yet-created notes), so
     # --check fails only on canvas/base broken refs (always-defects) unless --strict adds unresolved links.
     hard_defects = len(broken_canvas) + len(broken_base) + (len(broken_links) if strict else 0)
@@ -228,7 +284,7 @@ def main():
         "broken_links": broken_links, "broken_canvas": broken_canvas, "broken_base": broken_base,
         "broken_anchors": broken_anchors,
         "orphans": orphans, "dead_ends": dead_ends, "isolated": isolated, "orphan_media": orphan_media,
-        "stem_collisions": stem_collisions,
+        "stem_collisions": stem_collisions, "scope": scope,
     }
 
     if as_json:
@@ -252,6 +308,9 @@ def main():
             print(f"  ... +{len(items) - limit} more")
 
     print(f"=== VAULT REF AUDIT ({len(notes)} notes, {len(all_files)} files) ===")
+    if scope:
+        print(f"    scope: findings for {scope['changed_paths']} path(s) changed since {scope['since']} "
+              f"(full graph scanned over {scope['scanned_notes']} notes)")
     _section("unresolved links (incl. intentional forward-links; informational)", broken_links,
              lambda b: f"{b['note']}  ->  {b['target']}")
     _section("broken canvas refs", broken_canvas, lambda b: f"{b['canvas']}  ->  {b['target']}", 15)

@@ -29,7 +29,9 @@ INTERNAL = {
     "check-release": "release/CI version-sync helper, not a vault/memory capability",
 }
 # Universal flags not worth a per-engine catalog entry.
-IGNORE_FLAGS = {"--help"}
+# Not neurokeeper CLI flags: `--help` is universal; the rest are args passed to a `git` subprocess
+# (ref-audit `--since` shells out to `git rev-parse` / `git diff`), so they must not demand a wiki entry.
+IGNORE_FLAGS = {"--help", "--show-toplevel", "--name-only"}
 
 
 def _engines_from_cli():
