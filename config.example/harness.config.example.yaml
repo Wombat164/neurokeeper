@@ -5,7 +5,7 @@
 memory_dir: "~/.claude/memory"
 
 # Soft byte-budget for the memory index file before it partial-loads (tune to your harness).
-memory_bytes_budget: 45000
+memory_bytes_budget: 25000  # real harness cap: 25000 bytes OR 200 lines, whichever first; aim lower for headroom
 
 # OPTIONAL vault metrics (leave unset to skip):
 vault_inbox_dir: ""     # enables the inbox-pressure metric
