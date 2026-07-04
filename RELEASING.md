@@ -21,12 +21,11 @@ This publishes the GitHub Release. CI (`ci`) runs on the tag; the wiki redeploys
 
 ## Publish to PyPI (one-time setup, then automatic)
 
-> [!warning] The bare name `neurokeeper` is TAKEN on PyPI
-> An unrelated project already owns `pypi.org/project/neurokeeper`. Publishing as-is will fail. Before
-> enabling PyPI, rename the distribution in `pyproject.toml` (`[project] name`) to a free name (e.g.
-> `obsidian-neurokeeper`) - the import package, the `neurokeeper` console command, the GitHub repo,
-> and the Claude Code plugin name can all stay the same; only the PyPI *distribution* name must change.
-> Until then, distribute via the plugin marketplace + `pipx install git+https://github.com/Wombat164/neurokeeper`.
+> [!note] Distribution name: `neurokeeper` (verified free on PyPI)
+> The distribution publishes under its natural name `neurokeeper` (`pyproject.toml` `[project] name`);
+> the name is unregistered on PyPI, so no rename is needed. Import package, console command, GitHub
+> repo, and plugin name are all `neurokeeper` too. The first published Release claims the name on PyPI,
+> so publishing is worthwhile sooner rather than later (an unclaimed name can be squatted).
 
 PyPI publishing uses **Trusted Publishing (OIDC)** - no API tokens are stored. It is **gated off by
 default** so releases stay green until you opt in. To enable:

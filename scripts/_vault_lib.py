@@ -93,6 +93,7 @@ def md_files(vault=None, exclude=None):
         rel = os.path.relpath(root, vault); rel = "" if rel == "." else rel
         if any(rel == e or rel.startswith(e + os.sep) for e in exclude):
             dirs[:] = []; continue
+        dirs[:] = [d for d in dirs if not d.startswith(".")]  # Obsidian ignores dot-dirs (tool caches, .obsidian, .git, ...) (issue #3)
         for f in files:
             if f.endswith(".md"):
                 yield os.path.join(root, f), rel

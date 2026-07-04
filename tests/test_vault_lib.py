@@ -69,6 +69,21 @@ def test_md_files_explicit_exclude(tmp_path):
     assert got == ["a.md"]
 
 
+def test_md_files_skips_dot_dirs(tmp_path):
+    """Dot-prefixed dirs (.obsidian / .git / tool caches) are skipped even with NO explicit
+    exclude - Obsidian ignores them, so they must not inflate lint/inventory counts (issue #3:
+    the #2 dot-dir skip had landed only in ref-audit's own walk, not the shared md_files())."""
+    import _vault_lib as vl
+    (tmp_path / "a.md").write_text("a", encoding="utf-8")
+    (tmp_path / "notes").mkdir()
+    (tmp_path / "notes" / "b.md").write_text("b", encoding="utf-8")
+    for d in (".extractor_cache", ".obsidian", ".git"):
+        (tmp_path / d).mkdir()
+        (tmp_path / d / "junk.md").write_text("junk", encoding="utf-8")
+    got = sorted(os.path.basename(p) for p, _ in vl.md_files(vault=str(tmp_path), exclude=()))
+    assert got == ["a.md", "b.md"], got
+
+
 def test_md_files_honours_env_scan_exclude(tmp_path, monkeypatch):
     """The module-level default exclude is derived from VAULT_SCAN_EXCLUDE."""
     (tmp_path / "keepdir").mkdir()
