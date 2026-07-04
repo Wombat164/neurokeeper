@@ -6,6 +6,8 @@ Full per-release notes: https://github.com/Wombat164/neurokeeper/releases
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-07-04
+
 ### Added
 - R20 wiki-coverage gate (`tests/test_wiki_coverage.py`): a deterministic test that fails CI when a
   user-facing engine or flag is missing from the wiki reference catalog, deriving ground truth from
@@ -13,10 +15,19 @@ Full per-release notes: https://github.com/Wombat164/neurokeeper/releases
   subcommands) and `IGNORE_FLAGS`.
 - Community-health files: `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1),
   issue templates, pull-request template, and `THIRD-PARTY-LICENSES.md`.
+- PyPI distribution under the natural name `neurokeeper`, published via Trusted Publishing (OIDC,
+  no stored tokens) on a published GitHub Release. Install with `pipx install neurokeeper` or run
+  one-shot with `uvx neurokeeper`.
 
 ### Fixed
+- `frontmatter-lint` / `taxonomy-inventory` (#3, secondary): the shared `md_files()` walker now skips
+  dot-prefixed directories (`.obsidian`, `.git`, tool caches) the way Obsidian does, so notes under
+  `.extractor_cache/` etc. no longer inflate `no_fm` and other counts. The #2 dot-dir skip had landed
+  only in `ref-audit`'s own walk; this moves it into the shared walker for every consumer.
 - Documented three flags that the coverage gate surfaced as undocumented: `name-reconcile --under`
   and `--no-exclusions`, and `frontmatter-fix --dates`.
+- Corrected docs that wrongly stated the PyPI name `neurokeeper` was taken (it is unregistered and
+  free); removed the obsolete "rename the distribution" guidance from RELEASING.md.
 
 ### Changed
 - README refreshed (centered header, badges, nav, ASCII-clean prose); documentation version pins
@@ -60,7 +71,8 @@ Full per-release notes: https://github.com/Wombat164/neurokeeper/releases
 
 The earlier release line. See the GitHub releases for details.
 
-[Unreleased]: https://github.com/Wombat164/neurokeeper/compare/v0.3.2...HEAD
+[Unreleased]: https://github.com/Wombat164/neurokeeper/compare/v0.3.3...HEAD
+[0.3.3]: https://github.com/Wombat164/neurokeeper/releases/tag/v0.3.3
 [0.3.2]: https://github.com/Wombat164/neurokeeper/releases/tag/v0.3.2
 [0.3.1]: https://github.com/Wombat164/neurokeeper/releases/tag/v0.3.1
 [0.3.0]: https://github.com/Wombat164/neurokeeper/releases/tag/v0.3.0

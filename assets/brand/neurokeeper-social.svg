@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <radialGradient id="bg" cx="82%" cy="6%" r="115%">
+      <stop offset="0%" stop-color="#15382c"/>
+      <stop offset="46%" stop-color="#0e1218"/>
+      <stop offset="100%" stop-color="#0a0e13"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#10b981" stop-opacity=".36"/>
+      <stop offset="62%" stop-color="#10b981" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="1090" cy="70" r="300" fill="url(#glow)"/>
+
+  <!-- mark -->
+  <svg x="82" y="60" width="112" height="112" viewBox="0 0 64 64">
+    <defs>
+      <path id="h" d="M32 7.5C36.4 4.8 43.5 5.8 46 11.6 52.6 12 57.4 18.2 54.3 24.4 58.9 27.6 58.9 36.2 52.7 39.2 52.9 46 47 50.7 40.4 48.6 38.3 52.8 35 54.5 32 54.5" fill="none" stroke="#f2f5f8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path id="f" d="M43.5 15.5C47.8 19.4 47.8 27 43.5 31" fill="none" stroke="#f2f5f8" stroke-width="2.1" stroke-linecap="round" opacity=".5"/>
+    </defs>
+    <use href="#h"/><use href="#h" transform="matrix(-1 0 0 1 64 0)"/>
+    <use href="#f"/><use href="#f" transform="matrix(-1 0 0 1 64 0)"/>
+    <g transform="translate(21.6 23.4) scale(.87)" fill="#25cd94">
+      <path d="M12 5V2L8 6l4 4V7c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0 0 20 13c0-4.42-3.58-8-8-8z"/>
+      <path d="M12 19c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 8.74A7.93 7.93 0 0 0 4 13c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/>
+    </g>
+  </svg>
+
+  <text x="212" y="150" font-family="Segoe UI, system-ui, sans-serif" font-size="66" font-weight="600" fill="#f2f5f8" letter-spacing="-2.5">neurokeeper</text>
+
+  <text font-family="Segoe UI, system-ui, sans-serif" font-size="52" font-weight="500" fill="#eef2f6" letter-spacing="-1">
+    <tspan x="84" y="336">Deterministic hygiene for your notes vault</tspan>
+    <tspan x="84" y="404">and agent memory, <tspan fill="#25cd94">kept current</tspan>.</tspan>
+  </text>
+
+  <text x="84" y="556" font-family="Consolas, ui-monospace, monospace" font-size="27" fill="#93a4a1">
+    <tspan fill="#eef2f6">pipx install neurokeeper</tspan>&#160;&#160;&#160;&#183;&#160;&#160;&#160;plugin&#160;&#183;&#160;CLI&#160;&#183;&#160;CI gate
+  </text>
+</svg>

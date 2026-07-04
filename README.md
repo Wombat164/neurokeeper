@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/neurokeeper-mark-dark.svg">
+    <img src="assets/brand/neurokeeper-mark.svg" alt="neurokeeper" width="92" height="92">
+  </picture>
+</p>
+
 <h1 align="center">neurokeeper</h1>
 
 <p align="center">
@@ -68,11 +75,11 @@ Each engine carries a metadata header (`@capability/@compute/@effect/@portabilit
 
 **As a standalone CLI** (the engines, runnable anywhere / in CI - no Claude Code needed):
 ```
-pipx install git+https://github.com/Wombat164/neurokeeper   # from GitHub
-pip install -e ".[dev]"                                         # from a checkout (editable, with test/lint deps)
+pipx install neurokeeper                                    # from PyPI
+uvx neurokeeper --list                                      # zero-install one-shot (uv)
+pipx install git+https://github.com/Wombat164/neurokeeper   # or track main from GitHub
+pip install -e ".[dev]"                                     # or from a checkout (editable, with test/lint deps)
 ```
-(The bare PyPI name `neurokeeper` is taken by an unrelated project, so install from GitHub; a future
-PyPI release would use a distinct distribution name.)
 Then run any engine via the dispatcher:
 ```
 neurokeeper <engine> [args]     # e.g.  neurokeeper taxonomy-inventory --json
