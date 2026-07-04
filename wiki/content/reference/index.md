@@ -37,6 +37,9 @@ tags:
   `[[stem]]` link ambiguous). The read-only counterpart to `name-reconcile`. Unresolved wikilinks are
   **informational by default** (they are often intentional forward-links to not-yet-created notes);
   broken `.canvas`/`.base` refs are always real defects.
+- **Since 2026-07-04:** also resolves `[[note#heading]]` / `[[note#^block]]` anchors (broken anchors
+  reported informationally: the file resolves but the heading/block does not exist) and reports the
+  **isolated** set (notes that are both orphan AND dead-end, i.e. fully disconnected).
 - **Contract:** `--json`, `--check` (exit 1 on broken canvas/base refs), `--strict` (also fail on
   unresolved links).
 - **Env:** `VAULT_ROOT`, `VAULT_REFAUDIT_EXCLUDE`.
@@ -107,6 +110,11 @@ tags:
 - **What it does:** the deterministic analyzer behind the memory-audit -- computes a multi-metric health
   score, an importance/decay curve, and orphan / broken-link / stale / dead-end detection over a
   file-based memory store, then emits a consolidation proposal. Read-only: it proposes, never writes.
+- **Decay model (since 2026-07-04):** per-note-type base half-life via frontmatter `metadata.type` --
+  `user` 365d / `reference` 270d / `feedback` 180d / `project` 90d; untyped notes keep the prior 90d
+  curve exactly. Reference count still multiplies the half-life (`base * (1 + log2(refs + 1))`).
+- **Snooze (since 2026-07-04):** a `reviewed: YYYY-MM-DD` frontmatter stamp suppresses the stale flag
+  for 120 days (override with `ttl: <days>`). Use it after deliberately re-validating an old note.
 - **Contract:** `--json`, `--check`, `--terse`, `--today YYYY-MM-DD`.
 - **Audit (capability):** append-only, hash-chained log (not git -- see [[explanation/index]]).
 - **Env:** `CLAUDE_MEMORY_DIR`, optional `VAULT_INBOX_DIR`, `VAULT_ROOT`.

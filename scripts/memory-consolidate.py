@@ -34,8 +34,40 @@ MEM_DIR = os.environ.get("CLAUDE_MEMORY_DIR") or os.path.expanduser("~/.claude/m
 INBOX_DIR = os.environ.get("VAULT_INBOX_DIR", "")   # optional: inbox-pressure metric (skipped if unset)
 VAULT_ROOT = os.environ.get("VAULT_ROOT", "")        # optional: Phase-E vault-note count (skipped if unset)
 STALE_THRESHOLD = 0.15
-MEMORY_LINE_LIMIT = 180
-BYTES_BUDGET = 45000  # soft load-budget: over this, MEMORY.md likely partial-loads (tunable)
+MEMORY_LINE_LIMIT = 180   # warn threshold; HARD harness cap = 200 lines
+# HARNESS READ CAP (verified 2026-07-04 vs Claude Code memory loader + docs):
+# MEMORY.md loads ONLY the first 200 lines OR 25000 bytes, whichever first; anything past
+# either axis is silently dropped from context. The prior 45000 was 1.8x the real cap, so
+# this reported "OK" while the loader truncated the index. Aim <=17500 / <=140 for headroom.
+BYTES_BUDGET = 25000  # HARD harness cap; aim <=17500 for headroom
+# Per-note-type BASE half-life (days); the reference-count bonus multiplies on top:
+#   half_life = base * (1 + log2(refs + 1)).  Default base 90 reproduces the prior
+#   90 + 90*log2(refs+1) curve EXACTLY, so untyped stores are unchanged.
+TYPE_HALFLIFE = {"user": 365, "reference": 270, "feedback": 180, "project": 90}
+SNOOZE_DEFAULT_DAYS = 120  # a `reviewed:` stamp suppresses the stale flag for this long, unless `ttl:` overrides
+
+
+def _frontmatter(text):
+    """Flat key->value of the leading YAML block (captures nested keys like metadata.type too)."""
+    m = re.match(r"^---\s*\n(.*?)\n---", text, re.S)
+    fm = {}
+    if m:
+        for line in m.group(1).splitlines():
+            mm = re.match(r"\s*([A-Za-z_][\w-]*):\s*(\S.*?)\s*$", line)
+            if mm:
+                fm[mm.group(1).lower()] = mm.group(2).strip().strip("\"'")
+    return fm
+
+
+def _snoozed(fm, now):
+    """True if a recent `reviewed:` stamp (within `ttl:` days, else SNOOZE_DEFAULT_DAYS) suppresses staleness."""
+    try:
+        rdate = datetime.strptime(fm.get("reviewed", "")[:10], "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    except (ValueError, TypeError):
+        return False
+    ttl = fm.get("ttl", "")
+    ttl_days = int(ttl) if ttl.isdigit() else SNOOZE_DEFAULT_DAYS
+    return (now - rdate).total_seconds() / 86400.0 <= ttl_days
 
 def parse_args():
     today, as_json, check, terse = None, False, False, False
@@ -84,7 +116,9 @@ def main():
             bw = 1.5
         else:
             bw = 1.0
-        files[fn] = {"path": p, "text": text, "days": days, "base_weight": bw}
+        fm = _frontmatter(text)
+        files[fn] = {"path": p, "text": text, "days": days, "base_weight": bw,
+                     "type": fm.get("type", ""), "snoozed": _snoozed(fm, now)}
 
     names = list(files)
     index_files = ["MEMORY.md"] + [f for f in names if f.startswith("archive-")]
@@ -122,7 +156,8 @@ def main():
     for fn in names:
         if fn == "MEMORY.md": continue
         rc = inbound(fn)
-        half_life = 90 + 90 * math.log2(rc + 1)
+        base = TYPE_HALFLIFE.get(files[fn]["type"].lower(), 90)
+        half_life = base * (1 + math.log2(rc + 1))   # base 90 == prior 90 + 90*log2(rc+1)
         recency = math.exp(-files[fn]["days"] / half_life)
         importance = recency * files[fn]["base_weight"]
         rows.append({
@@ -131,6 +166,7 @@ def main():
             "referenced_in_index": fn in referenced_index,
             "is_archive": fn.startswith("archive-"),
             "outbound": has_outbound(fn),
+            "note_type": files[fn]["type"], "snoozed": files[fn]["snoozed"],
         })
 
     # ---- categories ----
@@ -145,7 +181,8 @@ def main():
             broken.append(ref)
     broken = sorted(set(broken))
     stale = [r for r in rows if r["importance"] < STALE_THRESHOLD
-             and not r["referenced_in_index"]]
+             and not r["referenced_in_index"] and not r["snoozed"]]
+    snoozed = [r["file"] for r in rows if r["snoozed"]]
     dead_ends = [r for r in rows if not r["outbound"] and r["refs"] == 0
                  and not r["is_archive"]]
     underscored = [fn for fn in names
@@ -195,6 +232,7 @@ def main():
         "stale": sorted(stale, key=lambda r: r["importance"])[:40],
         "dead_ends": sorted(dead_ends, key=lambda r: r["importance"]),
         "underscored": underscored,
+        "snoozed": snoozed,
         "active_vault_notes": active_notes,
         "heaviest_files": sorted(
             ({"file": fn, "chars": len(files[fn]["text"])} for fn in names if fn != "MEMORY.md"),
@@ -216,8 +254,8 @@ def main():
                   f"(run: python scripts/memory-consolidate.py)")
             sys.exit(1)
         if mem_bytes > BYTES_BUDGET:
-            print(f"memory WARN: MEMORY.md {mem_bytes//1024}KB > budget {BYTES_BUDGET//1024}KB "
-                  f"-- consider /vault-memory-audit --consolidate (not blocking)")
+            print(f"memory WARN: MEMORY.md {mem_bytes//1024}KB > 25KB harness cap (TRUNCATING) "
+                  f"- run consolidation (not blocking)")
         else:
             print(f"memory OK: {mem_bytes//1024}KB, 0 defects")
         sys.exit(0)
@@ -242,6 +280,8 @@ def main():
     print(f"Broken links ({len(broken)}): " + (", ".join(broken) if broken else "none"))
     print(f"Underscored filenames ({len(underscored)}): " +
           (", ".join(underscored) if underscored else "none"))
+    if snoozed:
+        print(f"Snoozed (recent reviewed:/ttl: -- excluded from stale) ({len(snoozed)}): " + ", ".join(snoozed))
     print(f"\nStale (importance<{STALE_THRESHOLD} AND unreferenced) -- {len(stale)}:")
     for r in result["stale"]:
         print(f"  {r['importance']:.3f}  {r['days']:>4}d  refs={r['refs']}  {r['file']}")

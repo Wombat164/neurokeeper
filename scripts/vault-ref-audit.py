@@ -63,6 +63,25 @@ _MDLINK = re.compile(r"!?\[[^\]]*\]\(([^)]+)\)")
 _URI = re.compile(r"^[a-z][a-z0-9+.\-]*:", re.I)
 _FENCE = re.compile(r"```.*?```", re.S)
 _BASE_REF = re.compile(r'["\']([^"\']+\.(?:md|canvas|png|jpe?g|gif|svg|webp|pdf|excalidraw))["\']', re.I)
+_HEADING = re.compile(r"^\s{0,3}#{1,6}\s+(.*\S)")
+_BLOCKID = re.compile(r"\s\^([A-Za-z0-9][\w-]*)\s*$")
+
+
+def _norm_heading(s):
+    return re.sub(r"[^a-z0-9 ]+", "", s.lower()).strip()
+
+
+def _heading_block_index(body):
+    """(normalized heading-slug set, block-id set) for resolving [[note#heading]] / [[note#^block]] anchors."""
+    heads, blocks = set(), set()
+    for line in body.splitlines():
+        hm = _HEADING.match(line)
+        if hm:
+            heads.add(_norm_heading(hm.group(1).rstrip("# ").strip()))
+        bm = _BLOCKID.search(line)
+        if bm:
+            blocks.add(bm.group(1).lower())
+    return heads, blocks
 
 
 def _walk_all(vault):
@@ -117,6 +136,8 @@ def main():
     inbound = {rp: 0 for rp in notes}
     outbound = {rp: 0 for rp in notes}
     referenced, broken_links = set(), []
+    headings_by_note = {}          # relpath -> (heading-slug set, block-id set), for anchor resolution
+    anchor_links = []              # (source, resolved-note, anchor) for links carrying a #heading / #^block
 
     for rp in notes:
         try:
@@ -124,9 +145,12 @@ def main():
         except OSError:
             continue
         body = _FENCE.sub("", text)
-        targets = [lk.target for _s, lk in backend.find_links(body)]
-        targets += [m.group(1).split("#")[0].split('"')[0].strip() for m in _MDLINK.finditer(body)]
-        for tgt in targets:
+        headings_by_note[rp] = _heading_block_index(body)
+        pairs = [(lk.target, lk.anchor) for _s, lk in backend.find_links(body)]   # wikilinks carry .anchor
+        for m in _MDLINK.finditer(body):
+            t, _, a = m.group(1).split('"')[0].strip().partition("#")
+            pairs.append((t.strip(), a.strip()))
+        for tgt, anchor in pairs:
             tgt = (tgt or "").strip()
             if not tgt or tgt.startswith("#"):
                 continue
@@ -138,6 +162,8 @@ def main():
                 referenced.add(r)
                 if r in inbound:
                     inbound[r] += 1
+                if anchor:
+                    anchor_links.append((rp, r, anchor))
 
     broken_canvas = []
     for rp in (f for f in all_files if f.endswith(".canvas")):
@@ -175,6 +201,20 @@ def main():
     # path-qualified [[folder/stem]] still resolves), surfaced like orphans.
     stem_collisions = sorted(({"stem": s, "paths": sorted(p)} for s, p in notes_by_stem.items() if len(p) > 1),
                              key=lambda x: x["stem"])
+    isolated = sorted(set(orphans) & set(dead_ends))   # neither inbound nor outbound (fully disconnected)
+    # broken anchors: a link resolves the file but its #heading / #^block target does not exist. INFORMATIONAL
+    # (heading drift is common; never gates), like unresolved links.
+    broken_anchors = []
+    for src, tgt, anchor in anchor_links:
+        idx = headings_by_note.get(tgt)
+        if idx is None:
+            continue                                   # target not an audited note (media/meta) -> no anchors
+        heads, blocks = idx
+        a = anchor.strip().lstrip("#")
+        ok = (a[1:].lower() in blocks) if a.startswith("^") else (_norm_heading(a) in heads)
+        if a and not ok:
+            broken_anchors.append({"note": src, "target": f"{tgt}#{anchor}"})
+    broken_anchors.sort(key=lambda b: b["note"])
 
     # Unresolved wikilinks are often INTENTIONAL in Obsidian (forward-links to not-yet-created notes), so
     # --check fails only on canvas/base broken refs (always-defects) unless --strict adds unresolved links.
@@ -182,10 +222,12 @@ def main():
     result = {
         "notes": len(notes), "files": len(all_files),
         "counts": {"broken_links": len(broken_links), "broken_canvas": len(broken_canvas),
-                   "broken_base": len(broken_base), "orphans": len(orphans), "dead_ends": len(dead_ends),
+                   "broken_base": len(broken_base), "broken_anchors": len(broken_anchors),
+                   "orphans": len(orphans), "dead_ends": len(dead_ends), "isolated": len(isolated),
                    "orphan_media": len(orphan_media), "stem_collisions": len(stem_collisions)},
         "broken_links": broken_links, "broken_canvas": broken_canvas, "broken_base": broken_base,
-        "orphans": orphans, "dead_ends": dead_ends, "orphan_media": orphan_media,
+        "broken_anchors": broken_anchors,
+        "orphans": orphans, "dead_ends": dead_ends, "isolated": isolated, "orphan_media": orphan_media,
         "stem_collisions": stem_collisions,
     }
 
@@ -214,8 +256,11 @@ def main():
              lambda b: f"{b['note']}  ->  {b['target']}")
     _section("broken canvas refs", broken_canvas, lambda b: f"{b['canvas']}  ->  {b['target']}", 15)
     _section("broken base refs", broken_base, lambda b: f"{b['base']}  ->  {b['target']}", 15)
+    _section("broken anchors (file resolves, #heading/#^block does not; informational)", broken_anchors,
+             lambda b: f"{b['note']}  ->  {b['target']}", 20)
     _section("orphans (no inbound)", orphans, lambda o: o, 20)
     _section("dead-ends (no outbound)", dead_ends, lambda o: o, 20)
+    _section("isolated (no inbound AND no outbound)", isolated, lambda o: o, 20)
     _section("orphan media (referenced by nothing)", orphan_media, lambda o: o, 20)
     _section("name/stem collisions (ambiguous bare-link resolution)", stem_collisions,
              lambda c: f"{c['stem']}  ->  {', '.join(c['paths'])}", 15)

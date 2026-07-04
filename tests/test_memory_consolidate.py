@@ -73,6 +73,32 @@ def test_base_weight_emoji_tagged_bumps(tmp_path):
     assert row["importance"] > 1.5                      # bw 2.0 * (fresh ~1.0)
 
 
+def test_per_type_decay_halflife(tmp_path):
+    # same age + same (zero) refs: a reference-type note decays slower than a project-type -> higher importance
+    store = _store(tmp_path, {
+        "MEMORY.md": "# idx\n",
+        "ref-note.md": "---\nmetadata:\n  type: reference\n---\nbody\n",
+        "proj-note.md": "---\nmetadata:\n  type: project\n---\nbody\n",
+    })
+    d = _json(store, "--today", "2027-03-01")   # ~245d after the files' mtime, so recency < 1 for both
+    imp = {r["file"]: r["importance"] for r in d["lowest_importance"]}
+    assert imp["ref-note.md"] > imp["proj-note.md"]   # reference base half-life 270 > project 90
+
+
+def test_reviewed_ttl_snooze_excludes_from_stale(tmp_path):
+    # an old, unreferenced note is stale; a recent `reviewed:` stamp within `ttl:` snoozes it out of stale
+    store = _store(tmp_path, {
+        "MEMORY.md": "# idx\n",
+        "stale-one.md": "---\nmetadata:\n  type: project\n---\nold unreferenced body\n",
+        "snoozed-one.md": "---\nreviewed: 2027-02-20\nttl: 90\nmetadata:\n  type: project\n---\nold body\n",
+    })
+    d = _json(store, "--today", "2027-03-01")   # both ~245d old; snoozed reviewed 9d ago (< ttl 90)
+    stale_files = [r["file"] for r in d["stale"]]
+    assert "stale-one.md" in stale_files            # old + unreferenced + project half-life -> stale
+    assert "snoozed-one.md" not in stale_files       # recent reviewed:/ttl: suppresses staleness
+    assert "snoozed-one.md" in d["snoozed"]
+
+
 def test_check_exit_codes(tmp_path):
     clean = _store(tmp_path, {"MEMORY.md": "- [a](a.md)\n", "a.md": "x\n"}, name="clean")
     assert _run(clean, "--check").returncode == 0
