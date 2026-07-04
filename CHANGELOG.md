@@ -6,6 +6,18 @@ Full per-release notes: https://github.com/Wombat164/neurokeeper/releases
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-07-04
+
+### Added
+- `doctor` run-receipt: every run emits a `receipt` (`tool` / `version` / `root` / `files_scanned` /
+  `engines_run` / `duration_ms`) in `--json` and as the human report's header line, so a wrong-root or
+  0-file run fails loudly instead of passing as a silent green. (Roadmap R18.)
+- `ref-audit --since <git-ref>` (and `doctor --since`, forwarded): report only findings for notes
+  changed since a git ref, narrowing the `--check` gate to the diff for pre-commit / CI. The scan stays
+  graph-global (a renamed target can break backlinks in unchanged files); only the surfaced findings and
+  the gate are scoped. A bad ref or non-git tree exits 2 rather than silently scanning the wrong scope.
+  (Roadmap R15.)
+
 ## [0.3.3] - 2026-07-04
 
 ### Added
@@ -71,7 +83,8 @@ Full per-release notes: https://github.com/Wombat164/neurokeeper/releases
 
 The earlier release line. See the GitHub releases for details.
 
-[Unreleased]: https://github.com/Wombat164/neurokeeper/compare/v0.3.3...HEAD
+[Unreleased]: https://github.com/Wombat164/neurokeeper/compare/v0.3.4...HEAD
+[0.3.4]: https://github.com/Wombat164/neurokeeper/releases/tag/v0.3.4
 [0.3.3]: https://github.com/Wombat164/neurokeeper/releases/tag/v0.3.3
 [0.3.2]: https://github.com/Wombat164/neurokeeper/releases/tag/v0.3.2
 [0.3.1]: https://github.com/Wombat164/neurokeeper/releases/tag/v0.3.1

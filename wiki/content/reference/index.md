@@ -41,7 +41,10 @@ tags:
   reported informationally: the file resolves but the heading/block does not exist) and reports the
   **isolated** set (notes that are both orphan AND dead-end, i.e. fully disconnected).
 - **Contract:** `--json`, `--check` (exit 1 on broken canvas/base refs), `--strict` (also fail on
-  unresolved links).
+  unresolved links), and `--since <git-ref>` (report only findings for notes changed since the ref;
+  the scan stays graph-global, only the surfaced findings and the `--check` gate are narrowed, so it
+  is ideal for a pre-commit / CI diff run). A bad ref or non-git tree exits 2 rather than silently
+  scanning the wrong scope.
 - **Env:** `VAULT_ROOT`, `VAULT_REFAUDIT_EXCLUDE`.
 
 ### `doctor`
@@ -54,7 +57,12 @@ tags:
   engines (taxonomy-inventory, frontmatter-lint) contribute numbers but cannot fail the roll-up. The CI
   entrypoint for the pre-commit / GitHub-Action adapters. See [ADR-0002](https://github.com/Wombat164/neurokeeper/blob/main/docs/adr-0002-doctor-exit-semantics.md).
 - **Contract:** `--json`, `--check` (exit 1 iff a gating engine failed or any engine errored),
-  `--strict` (forwarded to ref-audit).
+  `--strict` and `--since <git-ref>` (both forwarded to ref-audit; `--since` narrows the reported
+  findings and the gate to notes changed since the ref).
+- **Run-receipt (since 2026-07-04):** every run emits a `receipt` (`tool`, `version`, `root`,
+  `files_scanned`, `engines_run`, `duration_ms`) as a `--json` field and as the header line of the human
+  report. A run that scanned 0 files or the wrong root is then visible at a glance instead of passing as a
+  silent green, the failure class the byte-cap and walk-exclude drifts fell into.
 - **Env:** the union of the engines it runs (`VAULT_ROOT`; `FRONTMATTER_SCHEMA` / `CLAUDE_MEMORY_DIR`
   decide applicability of those two).
 

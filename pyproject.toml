@@ -13,7 +13,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "neurokeeper"
-version = "0.3.3"
+version = "0.3.4"
 description = "Portable-core harness for agentic coding/knowledge work: deterministic engines + prompt templates + thin adapters."
 readme = "README.md"
 requires-python = ">=3.9"
