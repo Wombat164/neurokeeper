@@ -32,6 +32,26 @@ def _json(store, *args):
     return json.loads(r.stdout)
 
 
+def test_lint_flags_caveman_separators_but_not_wikilink_dashes(tmp_path):
+    # R11: --lint flags ' -- '/' -> ' separators in entries, but strip_protected() must NOT
+    # false-positive on a ' -- ' that is part of a real [[wikilink target]].
+    store = _store(tmp_path, {
+        "MEMORY.md": (
+            "# index\n"
+            "- [Good](foo.md) - clean hook\n"
+            "- [Bad -- sub](foo.md) -- bad sep with arrow -> here\n"
+            "- Legit [[Note -- With Dashes]] should not flag\n"
+        ),
+        "foo.md": "---\n---\nx\n",
+        "Note -- With Dashes.md": "---\n---\nx\n",
+    })
+    r = _run(store, "--lint")
+    assert r.returncode == 0                        # advisory: never blocks
+    out = r.stdout
+    assert "dash-sep" in out and "arrow" in out      # ' -- ' and ' -> ' are flagged
+    assert out.count("dash-sep") == 1                # the [[wikilink]] dashes are NOT flagged
+
+
 def test_inbound_counts_alias_and_heading_links(tmp_path):
     # foo referenced ONLY via alias / heading / escaped-pipe forms -> must count as referenced (not orphan)
     store = _store(tmp_path, {
