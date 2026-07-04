@@ -72,21 +72,27 @@ def main():
     c = Counter()
     offvocab = {k: Counter() for k in ("status", "maturity", "horizon", "lang", "note_type", "sphere")}
     unknown = Counter()
+    # per-finding + per-offvocab-value file lists, so --json is actionable without a second grep pass (issue #3)
+    files = {k: [] for k in ("no_fm", "parse_err", "missing_note_type", "missing_sphere", "unknown_fields")}
+    offvocab_files = {k: {} for k in ("status", "maturity", "horizon", "lang", "note_type", "sphere")}
 
     for path, rel in md_files():
         c["files"] += 1
         try: text = open(path, encoding="utf-8", errors="replace").read()
         except Exception: continue
         fm = parse_frontmatter(text)
-        if fm is None: c["no_fm"] += 1; continue
-        if fm.get("__parse_error__"): c["parse_err"] += 1; continue
-        if "note_type" not in fm: c["missing_note_type"] += 1
+        if fm is None: c["no_fm"] += 1; files["no_fm"].append(rel); continue
+        if fm.get("__parse_error__"): c["parse_err"] += 1; files["parse_err"].append(rel); continue
+        if "note_type" not in fm: c["missing_note_type"] += 1; files["missing_note_type"].append(rel)
         elif str(fm["note_type"]) not in nt_vals:
             c["offvocab_note_type"] += 1; offvocab["note_type"][str(fm["note_type"])] += 1
-        if "sphere" not in fm: c["missing_sphere"] += 1
+            offvocab_files["note_type"].setdefault(str(fm["note_type"]), []).append(rel)
+        if "sphere" not in fm: c["missing_sphere"] += 1; files["missing_sphere"].append(rel)
         else:
             for x in (fm["sphere"] if isinstance(fm["sphere"], list) else [fm["sphere"]]):
-                if str(x) not in sph_vals: c["offvocab_sphere"] += 1; offvocab["sphere"][str(x)] += 1
+                if str(x) not in sph_vals:
+                    c["offvocab_sphere"] += 1; offvocab["sphere"][str(x)] += 1
+                    offvocab_files["sphere"].setdefault(str(x), []).append(rel)
         for key in ("status", "maturity", "horizon", "lang"):
             v = fm.get(key)
             if v is None: continue
@@ -94,14 +100,16 @@ def main():
             for x in (v if isinstance(v, list) else [v]):
                 if str(x) not in allowed:
                     c["offvocab_" + key] += 1; offvocab[key][str(x)] += 1
+                    offvocab_files[key].setdefault(str(x), []).append(rel)
         # date+created coexistence is benign (2026-06-27 decision) -- not flagged
         if [k for k in fm.keys() if k not in known]:
-            c["unknown_fields"] += 1
+            c["unknown_fields"] += 1; files["unknown_fields"].append(rel)
             for k in fm.keys():
                 if k not in known: unknown[k] += 1
 
     result = {"counts": dict(c), "offvocab": {k: dict(v) for k, v in offvocab.items()},
-              "unknown_fields": dict(unknown.most_common(20))}
+              "unknown_fields": dict(unknown.most_common(20)),
+              "files": {**files, **{"offvocab_" + k: v for k, v in offvocab_files.items() if v}}}
     if mode == "json": print(json.dumps(result, indent=2, ensure_ascii=False)); return
     if mode == "terse":
         print(f"frontmatter: {c['files']} notes | missing note_type {c['missing_note_type']} / sphere "

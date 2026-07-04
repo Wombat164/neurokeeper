@@ -1,0 +1,26 @@
+version: 2
+updates:
+  # Python deps (pyproject.toml runtime + optional-dependencies, requirements-dev.txt).
+  # The runtime surface is intentionally tiny (stdlib + pyyaml); this keeps it fresh + secure.
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps"
+    groups:
+      python:
+        patterns: ["*"]
+
+  # GitHub Actions used by the CI / release / wiki workflows.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci"
+    groups:
+      actions:
+        patterns: ["*"]

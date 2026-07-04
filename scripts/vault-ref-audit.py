@@ -91,7 +91,7 @@ def _walk_all(vault):
         if rel and any(rel == e or rel.startswith(e + "/") for e in WALK_EXCLUDE):
             dirs[:] = []
             continue
-        dirs[:] = [d for d in dirs if d not in WALK_EXCLUDE]
+        dirs[:] = [d for d in dirs if d not in WALK_EXCLUDE and not d.startswith(".")]  # Obsidian ignores dot-dirs (tool caches, .obsidian, ...)
         for f in files:
             yield (rel + "/" + f) if rel else f
 
