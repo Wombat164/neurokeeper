@@ -140,6 +140,8 @@ neurokeeper builds on a healthy ecosystem; if it doesn't fit, one of these might
 
 What's different here: the deterministic vault-hygiene **engine suite** (tag / frontmatter / taxonomy / link-aware rename) + memory-audit behind a **portable core** — one codebase running as a Claude Code plugin *and* a standalone CLI/CI tool — rather than any single one of the above. A source-verified survey of the field (and exactly where neurokeeper is differentiated) is in [`docs/competitive-landscape.md`](docs/competitive-landscape.md).
 
+Where this is heading (repository-agnostic backends, editor-state preflight, Bases/dashboard output adapters, and what is deliberately NOT planned) lives in [`docs/roadmap.md`](docs/roadmap.md); the backend-seam contract it builds on is [`docs/adr-0001-backend-contract.md`](docs/adr-0001-backend-contract.md).
+
 ## Security & license
 - **License:** MIT — see [`LICENSE`](LICENSE).
 - **Secret scanning:** CI runs `gitleaks` with its default rules (secret-only) on every push, blocking.
