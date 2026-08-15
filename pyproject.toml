@@ -14,7 +14,7 @@ build-backend = "hatchling.build"
 [project]
 name = "neurokeeper"
 version = "0.4.0"
-description = "Portable-core harness for agentic coding/knowledge work: deterministic engines + prompt templates + thin adapters."
+description = "Knowledge, kept kempt. Portable-core harness for agentic coding/knowledge work: deterministic engines + prompt templates + thin adapters."
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }

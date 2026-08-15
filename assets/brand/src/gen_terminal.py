@@ -1,0 +1,67 @@
+"""Theme-aware quickstart card: the real doctor run on the shipped example vault.
+
+Replaces a single-background GIF that sat as a dark slab on light GitHub. Two SVGs, swapped by a
+<picture> element, so the card follows the reader's theme.
+
+The content is the canonical demo from .github/workflows/example-vault.yml, verbatim, with the one
+over-long line WRAPPED rather than elided: a real terminal wraps it too, and trimming counters out
+of a health report to make a nicer picture would be a lie about what the tool prints.
+
+Monospace makes layout exact: every glyph advances 0.6em, so a column index is a position. Text is
+outlined afterwards, so nothing depends on the reader having the font.
+"""
+import sys
+
+OUT, BG, FG, MUTED, ACCENT, DIM = sys.argv[1:7]
+
+FS = 14.0
+CW = FS * 0.6          # true monospace: 600/1000 upm
+LEAD = 21.0
+PAD_X, PAD_TOP = 26.0, 34.0
+
+# (column, text, role). role: fg | muted | accent | dim
+LINES = [
+    [(0, "$", "accent"), (2, "pipx install neurokeeper", "fg")],
+    [(0, "$", "accent"), (2, "neurokeeper doctor --check", "fg")],
+    [],
+    [(0, "=== neurokeeper doctor ===", "fg")],
+    [(0, "root examples/vault | 4 files scanned | neurokeeper 0.4.0 | 581ms", "muted")],
+    [(2, "[ok]", "accent"), (10, "taxonomy-inventory", "fg")],
+    [(2, "[ok]", "accent"), (10, "ref-audit", "fg"),
+     (21, "broken_links=1, broken_canvas=0, broken_base=0,", "muted")],
+    [(21, "broken_anchors=0, orphans=0, dead_ends=0, isolated=0,", "muted")],
+    [(21, "orphan_media=0, stem_collisions=0", "muted")],
+    [(2, "[skip]", "dim"), (10, "frontmatter-lint", "dim"), (28, "(required config not set)", "dim")],
+    [(2, "[skip]", "dim"), (10, "memory-consolidate", "dim"), (30, "(required config not set)", "dim")],
+    [],
+    [(0, "roll-up:", "fg"), (9, "OK", "accent")],
+]
+
+ROLE = {"fg": FG, "muted": MUTED, "accent": ACCENT, "dim": DIM}
+
+cols = max((c + len(t) for line in LINES for c, t, _ in line), default=0)
+W = round(PAD_X * 2 + cols * CW)
+H = round(PAD_TOP + len(LINES) * LEAD + PAD_TOP - 10)
+
+
+def esc(s):
+    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+parts = [
+    f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" role="img" '
+    f'aria-label="Terminal: neurokeeper doctor --check on the example vault, roll-up OK">',
+    "  <title>neurokeeper doctor --check</title>",
+    f'  <rect width="{W}" height="{H}" rx="12" fill="{BG}"/>',
+]
+for i, line in enumerate(LINES):
+    y = PAD_TOP + (i + 1) * LEAD - 6
+    for col, text, role in line:
+        x = PAD_X + col * CW
+        parts.append(
+            f'  <text x="{x:.1f}" y="{y:.1f}" font-family="mono" font-size="{FS:g}" '
+            f'fill="{ROLE[role]}" xml:space="preserve">{esc(text)}</text>')
+parts.append("</svg>")
+
+open(OUT, "w", encoding="utf-8").write("\n".join(parts) + "\n")
+print(f"  wrote {OUT}  ({W}x{H}, {cols} columns, {len(LINES)} lines)")

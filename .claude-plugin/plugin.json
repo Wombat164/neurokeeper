@@ -2,10 +2,21 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "neurokeeper",
   "version": "0.4.0",
-  "description": "Portable-core Claude Code harness: deterministic engines + prompt templates + thin adapters (skill/MCP/CLI). Engines are harness-agnostic; the Claude Code plugin is one adapter.",
-  "author": { "name": "neurokeeper contributors" },
+  "description": "Knowledge, kept kempt. Portable-core Claude Code harness: deterministic engines + prompt templates + thin adapters (skill/MCP/CLI). Engines are harness-agnostic; the Claude Code plugin is one adapter.",
+  "author": {
+    "name": "neurokeeper contributors"
+  },
   "homepage": "https://wombat164.github.io/neurokeeper/",
   "repository": "https://github.com/Wombat164/neurokeeper",
   "license": "MIT",
-  "keywords": ["obsidian", "vault", "knowledge-management", "frontmatter", "tags", "memory", "linting", "config-as-code"]
+  "keywords": [
+    "obsidian",
+    "vault",
+    "knowledge-management",
+    "frontmatter",
+    "tags",
+    "memory",
+    "linting",
+    "config-as-code"
+  ]
 }

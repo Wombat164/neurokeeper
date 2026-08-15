@@ -5,6 +5,8 @@ tags:
   - overview
 ---
 
+> **Knowledge, kept kempt.**
+
 **neurokeeper** is a portable-core harness for agentic coding and knowledge work. The load-bearing
 logic lives in harness-agnostic **engines** (deterministic scripts) plus **prompt templates** plus
 **versioned contracts**; a thin **adapter** binds them to a specific runtime. The Claude Code plugin is
