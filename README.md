@@ -1,16 +1,14 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/neurokeeper-mark-dark.svg">
-    <img src="assets/brand/neurokeeper-mark.svg" alt="neurokeeper" width="92" height="92">
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/neurokeeper-lockup-dark.svg">
+    <img src="assets/brand/neurokeeper-lockup.svg" alt="neurokeeper" width="380">
   </picture>
 </p>
 
-<h1 align="center">neurokeeper</h1>
-
 <p align="center">
-  <b>One portable core, every runtime.</b><br>
-  Deterministic hygiene engines for your notes vault and agent memory, run as a Claude Code
-  plugin, a standalone CLI, or a CI gate. One codebase, no fork.
+  <b>Knowledge, kept kempt.</b><br>
+  Deterministic hygiene engines for your notes vault and agent memory. One portable core, run as a
+  Claude Code plugin, a standalone CLI, or a CI gate. One codebase, no fork.
 </p>
 
 <p align="center">
@@ -34,7 +32,10 @@
 </p>
 
 <p align="center">
-  <img src="assets/quickstart.gif" alt="pipx install neurokeeper, then neurokeeper doctor: a clean run-receipt over a vault" width="720">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/quickstart-dark.svg">
+    <img src="assets/quickstart-light.svg" alt="Terminal: pipx install neurokeeper, then neurokeeper doctor --check over the shipped example vault, ending in roll-up OK" width="720">
+  </picture>
 </p>
 
 ---
