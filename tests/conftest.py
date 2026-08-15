@@ -87,6 +87,14 @@ _FILES = {
     "11 - Outbox/mail/x.md": "---\nstatus: pending\n---\nb\n",          # outbox-by-path
     "02 - Projects/date-equal.md": "---\nstatus: active\ncreated: 2026-06-01\ndate: 2026-06-01\n---\nb\n",
     "02 - Projects/date-diff.md": "---\nstatus: active\ncreated: 2026-06-01\ndate: 2026-05-15\n---\nb\n",
+    # quoted date, same day as created -> must still be recognised as redundant (templates emit
+    # date: "{{date:YYYY-MM-DD}}", which substitutes to a QUOTED date)
+    "02 - Projects/date-quoted.md": "---\nstatus: active\ncreated: 2026-06-01\ndate: \"2026-06-01\"\n---\nb\n",
+    # date with NO created -> --dates-rename territory (rename, never drop)
+    "02 - Projects/date-only.md": "---\nstatus: active\ndate: 2026-04-02\n---\nb\n",
+    # non-date values must survive both --dates and --dates-rename untouched
+    "02 - Projects/date-prose.md": "---\nstatus: active\ndate: April 2026\n---\nb\n",
+    "02 - Projects/date-placeholder.md": "---\nstatus: active\ndate: \"{{date:YYYY-MM-DD}}\"\n---\nb\n",
     "02 - Projects/malformed.md": "---\nstatus: active\ntags: [unclosed\n---\nb\n",
     "02 - Projects/missing-axes.md": "---\ntitle: x\n---\nb\n",
 

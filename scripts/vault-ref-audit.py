@@ -232,6 +232,21 @@ def main():
     def _shortest(paths):
         return min(paths, key=lambda p: (p.count("/"), len(p))) if paths else None
 
+    def _split_target(base):
+        """(stem, ext) for a LINK TARGET, counting only a plausible file extension as an extension.
+
+        os.path.splitext splits at the last dot unconditionally, so a note name containing a dot --
+        'MDC2.0 -- Medical Datacenter 2.0 Platform', 'SPF V9.0 Applicability -- ...' -- yields
+        ext='.0 Platform'. The resolver then searched files_by_name for a literal filename instead of
+        notes_by_stem, so EVERY link to a dotted note name resolved to nothing: the note showed up as
+        an orphan while dozens of real inbound links were reported broken. Version numbers and
+        programme codes make dotted names common, so this was not an edge case.
+        """
+        stem, ext = os.path.splitext(base)
+        if not re.fullmatch(r"\.[A-Za-z0-9]{1,8}", ext or ""):
+            return base, ""                  # not an extension -- the dot belongs to the name
+        return stem, ext
+
     def resolve(target):
         """Return the resolved relpath, '__external__' for a URL, or None if broken (Obsidian semantics)."""
         t = (target or "").strip().replace("\\", "/")
@@ -240,7 +255,7 @@ def main():
         if _URI.match(t):
             return "__external__"
         base = t.split("/")[-1]
-        stem, ext = os.path.splitext(base)
+        stem, ext = _split_target(base)
         if "/" in t:
             cands = [t.lower()] + ([t.lower() + ".md"] if not ext else [])
             hits = [rp for rp in all_files if rp.lower() in cands or any(rp.lower().endswith("/" + c) for c in cands)]

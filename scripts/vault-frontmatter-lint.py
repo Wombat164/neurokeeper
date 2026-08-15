@@ -26,6 +26,10 @@ except Exception:
     yaml = None
 
 SCHEMA = os.environ.get("FRONTMATTER_SCHEMA") or os.path.join(VAULT, ".claude/data/frontmatter-schema.yaml")
+# Markdown that lives in a vault but is not a note: agent instructions, repo readme, memory index.
+# Override with VAULT_NON_NOTES (comma-separated basenames).
+NON_NOTES = set(z.strip() for z in (os.environ.get("VAULT_NON_NOTES")
+                                    or "CLAUDE.md,README.md,MEMORY.md,AGENTS.md").split(",") if z.strip())
 EXAMPLE_SCHEMA = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                               "config.example", "frontmatter-schema.example.yaml")
 
@@ -65,6 +69,12 @@ def main():
     axes, state = sc.get("axes", {}), sc.get("state", {})
     nt_vals = set(axes.get("note_type", {}).get("values", []))
     sph_vals = set(axes.get("sphere", {}).get("values", []))
+    # An axis declared `recommended: false` is still VALIDATED when present (off-vocab values are
+    # reported) but its absence is no longer counted. Lets a vault define a vocabulary it has not
+    # rolled out yet without a missing-count firing on nearly every note -- a warning that fires on
+    # 95% of a vault is noise, and noise is why nobody reads the lint. Default stays true (report),
+    # so existing schemas are unaffected.
+    warn_missing = {ax: axes.get(ax, {}).get("recommended", True) for ax in ("note_type", "sphere")}
     vocab = {k: set(state.get(k, {}).get("values", [])) for k in ("status", "maturity", "horizon", "lang")}
     outbox_status = set(state.get("status", {}).get("outbox_values", []))
     known = flatten(sc.get("known_fields"))
@@ -77,6 +87,10 @@ def main():
     offvocab_files = {k: {} for k in ("status", "maturity", "horizon", "lang", "note_type", "sphere")}
 
     for path, rel in md_files():
+        # Repo-root config/readme files live in the vault but are not notes -- they have no note_type
+        # and never will, so counting them as findings is a permanent false positive.
+        if os.path.basename(path) in NON_NOTES:
+            continue
         c["files"] += 1
         frel = os.path.join(rel, os.path.basename(path)).replace(os.sep, "/")  # note relpath (issue #3: md_files' rel is the reldir)
         try: text = open(path, encoding="utf-8", errors="replace").read()
@@ -84,11 +98,15 @@ def main():
         fm = parse_frontmatter(text)
         if fm is None: c["no_fm"] += 1; files["no_fm"].append(frel); continue
         if fm.get("__parse_error__"): c["parse_err"] += 1; files["parse_err"].append(frel); continue
-        if "note_type" not in fm: c["missing_note_type"] += 1; files["missing_note_type"].append(frel)
+        if "note_type" not in fm:
+            if warn_missing["note_type"]:
+                c["missing_note_type"] += 1; files["missing_note_type"].append(frel)
         elif str(fm["note_type"]) not in nt_vals:
             c["offvocab_note_type"] += 1; offvocab["note_type"][str(fm["note_type"])] += 1
             offvocab_files["note_type"].setdefault(str(fm["note_type"]), []).append(frel)
-        if "sphere" not in fm: c["missing_sphere"] += 1; files["missing_sphere"].append(frel)
+        if "sphere" not in fm:
+            if warn_missing["sphere"]:
+                c["missing_sphere"] += 1; files["missing_sphere"].append(frel)
         else:
             for x in (fm["sphere"] if isinstance(fm["sphere"], list) else [fm["sphere"]]):
                 if str(x) not in sph_vals:
