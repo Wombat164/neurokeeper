@@ -51,7 +51,7 @@ def test_dates_drop_only_when_equal_created(mini_vault, run_engine):
     r = run_engine(ENGINE, "--apply", "--dates", "--force", "--json", env=env)
     assert r.returncode == 0, r.stderr
     stats = json.loads(r.stdout)
-    assert stats["date_dropped"] == 1
+    assert stats["date_dropped"] == 2     # date-equal.md + date-quoted.md
     assert stats["date_kept_diff"] == 1
 
     eq = _read(root, "02 - Projects/date-equal.md")
@@ -60,6 +60,63 @@ def test_dates_drop_only_when_equal_created(mini_vault, run_engine):
 
     diff = _read(root, "02 - Projects/date-diff.md")
     assert "date: 2026-05-15" in diff         # genuinely different date retained
+
+
+def test_dates_recognises_quoted_date_as_redundant(mini_vault, run_engine):
+    """A quoted date equal to created must be dropped like an unquoted one.
+
+    Regression guard: templates emit date: "{{date:YYYY-MM-DD}}", which substitutes to a QUOTED
+    date. The original day-compare failed on the leading quote, so every template-created note was
+    silently classed date_kept_diff and never cleaned -- a blind spot that grew with each new note.
+    """
+    root, env = mini_vault["root"], mini_vault["env"]
+    r = run_engine(ENGINE, "--apply", "--dates", "--force", "--json", env=env)
+    assert r.returncode == 0, r.stderr
+    stats = json.loads(r.stdout)
+    assert stats["date_dropped"] == 2       # date-equal.md AND date-quoted.md
+    assert stats["date_kept_diff"] == 1     # date-diff.md only
+
+    q = _read(root, "02 - Projects/date-quoted.md")
+    assert "date:" not in q                  # redundant quoted date dropped
+    assert "created: 2026-06-01" in q
+
+
+def test_dates_rename_is_opt_in_and_never_drops(mini_vault, run_engine):
+    """`date:` with no `created:` is the note's only creation date -> rename, never drop."""
+    root, env = mini_vault["root"], mini_vault["env"]
+
+    # --dates alone must NOT touch it (renaming writes a canonical field; separate opt-in)
+    r = run_engine(ENGINE, "--apply", "--dates", "--force", "--json", env=env)
+    assert r.returncode == 0, r.stderr
+    assert json.loads(r.stdout)["date_renamed"] == 0
+    assert "date: 2026-04-02" in _read(root, "02 - Projects/date-only.md")
+
+    r2 = run_engine(ENGINE, "--apply", "--dates-rename", "--force", "--json", env=env)
+    assert r2.returncode == 0, r2.stderr
+    assert json.loads(r2.stdout)["date_renamed"] == 1
+
+    only = _read(root, "02 - Projects/date-only.md")
+    assert "created: 2026-04-02" in only     # renamed in place
+    assert "date: 2026-04-02" not in only    # and the value was NOT lost
+
+
+def test_non_date_values_are_never_touched(mini_vault, run_engine):
+    """Prose dates and unsubstituted template placeholders must survive both date modes."""
+    root, env = mini_vault["root"], mini_vault["env"]
+    r = run_engine(ENGINE, "--apply", "--dates", "--dates-rename", "--force", "--json", env=env)
+    assert r.returncode == 0, r.stderr
+    assert "date: April 2026" in _read(root, "02 - Projects/date-prose.md")
+    assert 'date: "{{date:YYYY-MM-DD}}"' in _read(root, "02 - Projects/date-placeholder.md")
+
+
+def test_dates_rename_honours_exclude_zones(mini_vault, run_engine):
+    """VAULT_DATE_RENAME_EXCLUDE carves out zones that must stay byte-faithful (e.g. raw sources)."""
+    root = mini_vault["root"]
+    env = dict(mini_vault["env"]); env["VAULT_DATE_RENAME_EXCLUDE"] = "02 - Projects"
+    r = run_engine(ENGINE, "--apply", "--dates-rename", "--force", "--json", env=env)
+    assert r.returncode == 0, r.stderr
+    assert json.loads(r.stdout)["date_renamed"] == 0
+    assert "date: 2026-04-02" in _read(root, "02 - Projects/date-only.md")   # untouched
 
 
 def test_apply_is_idempotent(mini_vault, run_engine, hash_tree):

@@ -105,6 +105,44 @@ off-vocabulary values.
 
 ---
 
+## Ask whether the vault already covers something
+
+**Goal:** given an incoming item (a mail, a ticket, a transcript), find out whether a note about it
+already exists, and get the evidence for that answer. Read-only.
+
+1. Reduce the item to an envelope and pipe it in. Only `title` really matters; the rest sharpens it:
+   ```bash
+   export VAULT_ROOT="/path/to/your/notes"
+   echo '{"id":"1","title":"Re: Widget Programme timeline",
+          "participants":["ada.lovelace@example.org"],"codes":["PROJ-1"]}' \
+     | neurokeeper correlate --stats
+   ```
+2. Read the `state` and the `evidence`, not just the score:
+   - `anchored` - the vault covers this; the top candidate is the note.
+   - `correlated` - right neighbourhood; use the candidate list.
+   - `ambiguous` - two candidates point at genuinely different subjects. This is the one worth a
+     human or a model look.
+   - `topic-known` - a code matched but no note reached the bar.
+   - `new` - nothing. Treat as "look at this", not proof of absence.
+3. Batch it. Pass a JSON *list* to score a whole backlog in one call; the note index is built once
+   and cached, so a second run over the same vault reparses only what changed:
+   ```bash
+   neurokeeper correlate --item-file backlog.json --top 3 > verdicts.json
+   ```
+4. Point it at a non-Obsidian vault by mapping the frontmatter keys in a config file:
+   ```yaml
+   vault:
+     include: ["02 - Projects", "MOC"]
+     frontmatter_map:
+       aliases: [alias]        # Logseq
+       codes:   [project, ref]
+   ```
+   ```bash
+   neurokeeper correlate --config vault.yaml --item-file backlog.json
+   ```
+
+---
+
 ## Audit vault references
 
 **Goal:** find broken links, orphans, dead-ends, broken `.canvas`/`.base` references, and orphan media.
@@ -179,7 +217,7 @@ existing markdown ecosystem instead of duplicating it.
    ```yaml
    repos:
      - repo: https://github.com/Wombat164/neurokeeper
-       rev: v0.3.2
+       rev: v0.4.0
        hooks: [{ id: neurokeeper-doctor }]   # or: neurokeeper-ref-audit
    ```
    pre-commit installs the package in an isolated venv and runs the CLI against the repo root.
@@ -189,7 +227,7 @@ existing markdown ecosystem instead of duplicating it.
    - uses: actions/checkout@v4
    - uses: DavidAnson/markdownlint-cli2-action@v16    # markdown style (not neurokeeper's job)
    - uses: lycheeverse/lychee-action@v2               # external link existence (not neurokeeper's job)
-   - uses: Wombat164/neurokeeper@v0.3.2            # broken wikilinks/.canvas/.base, orphans, health
+   - uses: Wombat164/neurokeeper@v0.4.0            # broken wikilinks/.canvas/.base, orphans, health
      with: { vault-path: ".", engine: "doctor", strict: "false" }
    ```
 3. Understand what fails it. The exit code follows the doctor contract: broken `.canvas`/`.base` refs or an

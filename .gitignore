@@ -16,3 +16,6 @@ id_rsa
 config/
 *.local.*
 bootstrap/repos.txt
+
+# vault-correlate index cache (local build artifact)
+.vault-correlate-cache.json

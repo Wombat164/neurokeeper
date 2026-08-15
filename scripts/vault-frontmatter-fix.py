@@ -15,11 +15,20 @@ line-edits on the frontmatter block (no YAML reparse -> preserves formatting/ord
   - status off-vocab -> canonical (schema state.status.map); maturity-misused values move to maturity:
   - horizon off-vocab -> canonical (schema state.horizon.map)
   - redundant `date:` dropped ONLY where it equals `created:` (canonical = created/updated); date != created
-    is LEFT + flagged (may be a meaningful content date)
+    is LEFT + flagged (may be a meaningful content date). Day-precision compare, quote-tolerant.
+  - `date:` with NO `created:` is RENAMED to created: under --dates-rename (never dropped -- it is the
+    only creation date the note has). Honours VAULT_DATE_RENAME_EXCLUDE.
 Read-only dry-run by default. --apply is mutating (assert_obsidian_closed guard) + git audit.
-Usage: python scripts/vault-frontmatter-fix.py [--apply] [--force] [--json] [--dates] [--audit-log <file>]
+Usage: python scripts/vault-frontmatter-fix.py [--dates] [--dates-rename] [--apply] [--force] [--json]
+                                               [--audit-log <file>]
   --audit-log <file> : on --apply, append a tamper-evident record of the batch to a hash-chained log
                        (scripts/_audit.py), on top of the git diff. Verifiable with _audit.verify().
+                       The record carries the per-category counts, so a field RENAME (a write) is
+                       distinguishable from a redundant-field DROP (a removal) in the trail.
+
+Env:
+  VAULT_DATE_RENAME_EXCLUDE  comma-separated reldir prefixes exempt from --dates-rename (e.g. verbatim
+                             source zones). Applies ON TOP of VAULT_FORBIDDEN_ZONES.
 """
 import os, re, sys, json
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -52,6 +61,17 @@ def kv(line):
     m = re.match(r"^([A-Za-z0-9_\-]+):\s*(.*?)\s*$", line)
     return (m.group(1), m.group(2)) if m else (None, None)
 
+
+def _daypart(v):
+    """YYYY-MM-DD from a frontmatter date value, or None if it isn't one.
+
+    Tolerates wrapping quotes ("2026-06-27" / '2026-06-27') and any time suffix, so a quoted date and
+    a bare timestamp for the same day compare equal. Deliberately does NOT accept prose ("April 2026")
+    or unsubstituted placeholders ("{{date:YYYY-MM-DD}}") -- those must never be treated as dates.
+    """
+    m = re.match(r'^["\']?(\d{4}-\d{2}-\d{2})', str(v or ""))
+    return m.group(1) if m else None
+
 def main():
     force_utf8_stdout()
     args = sys.argv[1:]
@@ -70,7 +90,7 @@ def main():
     outbox_vals = set(st.get("outbox_values", []))
     hz_map = sc["state"]["horizon"].get("map", {})
     stats = {"status_remap": 0, "maturity_move": 0, "horizon_remap": 0, "date_dropped": 0,
-             "date_kept_diff": 0, "files_changed": 0}
+             "date_kept_diff": 0, "date_renamed": 0, "files_changed": 0}
     samples = []
     apply = "--apply" in args
     do_dates = "--dates" in args   # date-dedup is opt-in (ripples into dataview queries + templates)
@@ -79,6 +99,15 @@ def main():
         i = args.index("--audit-log")
         if i + 1 < len(args) and not args[i + 1].startswith("-"):
             audit_log = args[i + 1]
+    # --dates-rename: for notes carrying `date:` and NO `created:`, rename the key in place rather than
+    # dropping it (dropping would destroy the only creation date the note has). Separate opt-in from
+    # --dates because it WRITES a canonical field rather than removing a redundant one.
+    do_rename = "--dates-rename" in args
+    # Zones excluded from the rename specifically: content that must stay byte-faithful to its source.
+    # Comma-separated reldir prefixes; unset => no extra exclusions beyond VAULT_FORBIDDEN_ZONES.
+    rename_excl = tuple(z.strip().replace(os.sep, "/").strip("/")
+                        for z in (os.environ.get("VAULT_DATE_RENAME_EXCLUDE") or "").split(",")
+                        if z.strip())
     if apply: assert_obsidian_closed("--force" in args)
 
     for p, rel in md_files():
@@ -95,6 +124,7 @@ def main():
         # outbox status (pending/sent/void) is valid -> exempt. Derive outbox from note_type OR the PATH,
         # so a not-yet-typed outbox note isn't corrupted (pending->draft) by an early run (order-independence).
         plnorm = p.replace(os.sep, "/")
+        relnorm = (rel or "").replace(os.sep, "/").strip("/")   # reldir, for --dates-rename exclusions
         is_outbox = nt == "outbox" or "/11 - Outbox/" in plnorm or any(
             s in plnorm for s in ("/sent-mails/", "/actions/", "/deliverables/", "/mail/"))
         out = []
@@ -116,11 +146,21 @@ def main():
                 out.append(re.sub(r":\s*.*$", ": " + hz_map[v], line, count=1))
                 stats["horizon_remap"] += 1; continue
             if do_dates and k == "date" and "created" in kvs:
-                cr = str(kvs.get("created") or "")
-                if re.match(r"\d{4}-\d{2}-\d{2}", v) and cr[:10] == v[:10]:
+                # Compare on the DAY, tolerating surrounding quotes on either side. Templates commonly
+                # emit date: "{{date:YYYY-MM-DD}}", which substitutes to a QUOTED date -- without
+                # unquoting, every such note fell into date_kept_diff and was never cleaned, and the
+                # blind spot grew with each note the template produced.
+                dv, cr = _daypart(v), _daypart(str(kvs.get("created") or ""))
+                if dv and cr and dv == cr:
                     stats["date_dropped"] += 1; continue   # same calendar day as created -> redundant, drop
                 else:
                     stats["date_kept_diff"] += 1            # genuinely different day -> keep + flag for review
+            if do_rename and k == "date" and "created" not in kvs:
+                # No created: at all -> `date` IS this note's creation date. Rename, never drop.
+                if _daypart(v) and not any(relnorm == z or relnorm.startswith(z + "/")
+                                           for z in rename_excl):
+                    out.append(re.sub(r"^date:", "created:", line, count=1))
+                    stats["date_renamed"] += 1; continue
             out.append(line)
         new_head = "\n".join(out)
         if new_head != head:
@@ -135,9 +175,16 @@ def main():
 
     if apply and audit_log and stats["files_changed"] > 0:   # R13: tamper-evident record of the apply
         from datetime import datetime, timezone
+        # Per-category counts, not just the file count: a `date:` RENAME writes a canonical field
+        # while a redundant-`date:` DROP removes one. Those are different operations to answer for,
+        # and a trail that only says "5 files changed" cannot tell them apart after the fact.
         _audit_append(audit_log, {"ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                                   "engine": "frontmatter-fix", "action": "apply",
-                                  "files_changed": stats["files_changed"], "files": sorted(samples)})
+                                  "files_changed": stats["files_changed"],
+                                  "date_renamed": stats["date_renamed"],
+                                  "date_dropped": stats["date_dropped"],
+                                  "date_kept_diff": stats["date_kept_diff"],
+                                  "files": sorted(samples)})
 
     if "--json" in args:
         print(json.dumps(stats, indent=2)); return

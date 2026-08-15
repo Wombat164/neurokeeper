@@ -18,7 +18,9 @@
   <a href="https://github.com/Wombat164/neurokeeper/actions/workflows/example-vault.yml"><img src="https://github.com/Wombat164/neurokeeper/actions/workflows/example-vault.yml/badge.svg" alt="example-vault"></a>
   <a href="https://github.com/Wombat164/neurokeeper/releases"><img src="https://img.shields.io/github/v/release/Wombat164/neurokeeper" alt="release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/Wombat164/neurokeeper" alt="License: MIT"></a>
+  <img src="https://img.shields.io/badge/python-3.9%2B-7C8899" alt="Python 3.9+">
   <a href="https://wombat164.github.io/neurokeeper/"><img src="https://img.shields.io/badge/docs-wombat164.github.io-blue" alt="docs"></a>
+  <a href="SECURITY.md"><img src="https://img.shields.io/badge/read-SECURITY.md-FFB000" alt="read SECURITY.md"></a>
 </p>
 
 <p align="center">
@@ -26,6 +28,7 @@
   <a href="#the-shape-of-a-capability">How it works</a> &middot;
   <a href="#vault-taxonomy-engine-suite-l1a">Engines</a> &middot;
   <a href="#gate-a-vault-in-ci-pre-commit--github-action">CI gate</a> &middot;
+  <a href="examples/">Examples</a> &middot;
   <a href="https://wombat164.github.io/neurokeeper/">Docs site</a> &middot;
   <a href="CONTRIBUTING.md">Contributing</a>
 </p>
@@ -41,7 +44,7 @@ harness-agnostic **engines** (deterministic scripts) + **prompt templates** + **
 a thin **adapter** binds them to a specific runtime. The Claude Code plugin is *one* adapter: the same
 core works from an MCP server, a plain CLI, or any other LLM harness.
 
-> Status: **0.3.2 (alpha).** Licensed **MIT** (see [`LICENSE`](LICENSE)).
+> Status: **0.4.0 (alpha).** Licensed **MIT** (see [`LICENSE`](LICENSE)).
 
 ## Why
 "Skills" (and plugins, hooks) are runtime-specific and not portable. Putting the real logic in **engines
@@ -105,6 +108,7 @@ vault). All read `VAULT_ROOT` + config from the environment (see `config.example
 default, mutating only with `--apply` behind the Obsidian-running guard; git is the audit.
 
 - `vault-taxonomy-inventory.py` - naming/tags/frontmatter inventory (read-only)
+- `vault-correlate.py` - correlate external items (a mail, a ticket, a transcript) against vault notes: IDF-weighted scoring over codes / titles / aliases / people / tags, with an anchor floor and an evidence trail (read-only; JSON in, JSON out)
 - `vault-ref-audit.py` - reference-integrity audit: broken links / orphans / dead-ends / broken `.canvas`+`.base` refs / orphan media / name-stem collisions (read-only; `--check`/`--strict`)
 - `vault-doctor.py` - aggregate health: runs every applicable engine, one report + an honest tri-state roll-up (`ok`/`fail`/`skipped`); `--check`/`--strict` (see [ADR-0002](docs/adr-0002-doctor-exit-semantics.md))
 - `vault-frontmatter-lint.py` - validate notes against the schema (off-vocab / missing-axes / unknown-fields); `--check`
@@ -124,12 +128,12 @@ The same engines run as a commit/CI gate. neurokeeper ships a `.pre-commit-hooks
 # .pre-commit-config.yaml (in your vault repo)
 repos:
   - repo: https://github.com/Wombat164/neurokeeper
-    rev: v0.3.2
+    rev: v0.4.0
     hooks: [{ id: neurokeeper-doctor }]
 ```
 ```yaml
 # a GitHub workflow step
-- uses: Wombat164/neurokeeper@v0.3.2
+- uses: Wombat164/neurokeeper@v0.4.0
   with: { vault-path: ".", engine: "doctor", strict: "false" }
 ```
 Exit semantics follow [ADR-0002](docs/adr-0002-doctor-exit-semantics.md) (fails on broken `.canvas`/`.base`

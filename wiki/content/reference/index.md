@@ -29,6 +29,40 @@ tags:
 - **Contract:** `--json`.
 - **Env:** `VAULT_ROOT`, `VAULT_SCAN_EXCLUDE`.
 
+### `correlate`
+- **compute x effect:** deterministic x read-only
+- **What it does:** answers *does this vault already have a note about this thing?* for any external
+  item - a mail, a ticket, a meeting transcript, a PDF - reduced to a small envelope
+  (`title`, `body`, `participants`, `codes`, `date`) fed in as JSON. Scores every plausible note from
+  shared codes (40), a title or alias appearing verbatim in the item (35), IDF-weighted token overlap
+  (up to 25), a participant resolving to a person the note names (20), and shared tags (10), then
+  returns the top candidates with their evidence.
+- **States:** `anchored` (>=70) | `correlated` (40-69) | `ambiguous` | `topic-known` | `new`.
+- **The anchor floor:** no signal below 30 may anchor on its own. A pile of weak token hits is capped
+  at 69 and says so in its evidence - unbounded substring matching is how a correlator starts
+  confidently attaching items to the wrong note.
+- **Why IDF:** a token in 200 note titles carries almost no information, a rare one is nearly
+  decisive; raw token counting treats them the same. Document frequency is measured against the vault
+  being indexed, so the weighting adapts rather than relying on a fixed stopword list.
+- **Reads your schema:** the same frontmatter schema-as-code that `frontmatter-lint` validates against
+  (`--schema`, else `$FRONTMATTER_SCHEMA`, else `<vault>/.claude/data/frontmatter-schema.yaml`;
+  `--no-schema` opts out). Axes declared `open: true` hold free topical vocabulary and fold into the
+  tag signal; axes with an enumerated `values` list are classifiers (`note_type: note` is true of
+  almost every note) and are deliberately ignored, as is `state` (lifecycle, not subject matter). The
+  schema has no vocabulary for *which key holds a dossier code* or *which key names people* - the two
+  roles correlation leans on hardest - so a vault may declare them in an optional `correlate:` block
+  and keep one file authoritative. Precedence: engine defaults < schema < `--config` < CLI flags.
+- **Vault-form agnostic:** notes are read through a frontmatter *map* (`--config`), so Obsidian,
+  Logseq (`alias`) and a flat folder of plain markdown all work. With no frontmatter, the title falls
+  back to the filename stem and correlation runs on phrase + token signals: it degrades, it does not
+  fail.
+- **Contract:** JSON on stdin (or `--item-file`), JSON on stdout. `--top` sets how many candidates
+  each item returns (default 3); `--include` limits the scan to given relative dirs (repeatable,
+  overrides the config); `--config` supplies the `vault:` section (include + frontmatter map);
+  `--vault` selects the vault root. The index is cached per note on `(relpath, mtime, size)` at
+  `--cache`; `--stats` shows the parsed/cached split and `--refresh` ignores the cache.
+- **Env:** `VAULT_ROOT`, `VAULT_SCAN_EXCLUDE`. **Details:** `docs/engine-vault-correlate.md`.
+
 ### `ref-audit`
 - **compute x effect:** deterministic x read-only
 - **What it does:** audits reference integrity across the vault - unresolved links, orphans (no inbound),
@@ -91,8 +125,12 @@ tags:
   order (no YAML reparse).
 - **Contract:** `--apply`, `--force`, `--json` (report-only without `--apply`), `--dates` (opt-in
   `date` -> `created` field dedup, kept opt-in because it ripples into Dataview queries and templates
-  that still read `date`), and `--audit-log <file>` (on `--apply`, append a tamper-evident record of
-  the batch to a hash-chained log).
+  that still read `date`), `--dates-rename` (for notes carrying `date:` and NO `created:`, rename the
+  key in place instead of dropping it - dropping would destroy the only creation date the note has, so
+  this is a separate opt-in because it WRITES a canonical field rather than removing a redundant one;
+  honours `VAULT_DATE_RENAME_EXCLUDE` on top of `VAULT_FORBIDDEN_ZONES`), and `--audit-log <file>` (on
+  `--apply`, append a tamper-evident record of the batch to a hash-chained log; the record carries the
+  per-category counts, so a rename is distinguishable from a drop in the trail).
 - **Audit:** git, plus an optional hash-chained log via `--audit-log` (the reusable audit substrate
   `scripts/_audit.py`, which any apply-engine can write to; each entry chains the prior one's hash, so a
   silent after-the-fact edit is detectable). **Forbidden-zones:** attended by default; optional

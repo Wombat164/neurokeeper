@@ -152,3 +152,28 @@ def test_sarif_emits_valid_2_1_0(tmp_path):
     assert d["runs"][0]["tool"]["driver"]["name"] == "neurokeeper"
     rules = {x["ruleId"] for x in d["runs"][0]["results"]}
     assert "broken-link" in rules and "orphan" in rules      # findings flow through the IR into SARIF
+
+def test_dotted_note_names_resolve(tmp_path):
+    """A dot in a note NAME is not a file extension.
+
+    Regression: os.path.splitext("MDC2.0 -- Platform") returns ext=".0 Platform", so the resolver
+    searched for a literal filename instead of a note stem. Every link to a dotted note name was
+    reported broken and the note itself showed as an orphan despite dozens of real inbound links.
+    Version numbers and programme codes make dotted names common.
+    """
+    v = _vault(tmp_path / "v", {
+        "MDC2.0 -- Platform.md": "target\n",
+        "SPF V9.0 Applicability.md": "target\n",
+        "src.md": "[[MDC2.0 -- Platform]] and [[SPF V9.0 Applicability]]\n",
+    })
+    d = _json(v)
+    assert d["broken_links"] == []
+    assert "MDC2.0 -- Platform.md" not in d["orphans"]
+    assert "SPF V9.0 Applicability.md" not in d["orphans"]
+
+
+def test_real_extensions_still_resolve_as_files(tmp_path):
+    """The dotted-name fix must not stop genuine extensions resolving."""
+    v = _vault(tmp_path / "v", {"a.md": "[[note.md]] and ![[img.png]]\n",
+                                "note.md": "x\n", "img.png": "binary"})
+    assert _json(v)["broken_links"] == []
