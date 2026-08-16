@@ -1,26 +1,62 @@
 #!/usr/bin/env bash
-# Tracked pre-commit gate: a staged-changes secret scan.
+# neurokeeper pre-commit gate: a secret scan, then a vocabulary scan.
 #
 # This lives in the tree and is reached through core.hooksPath, NOT in .git/hooks. A control placed
-# in .git/hooks exists for exactly one person: it does not clone, and nothing reports its absence
-# on any other machine, because the ruleset sits right there in the tree looking convincing.
+# in .git/hooks exists for exactly one person: it does not clone, and nothing reports its absence on
+# any other machine, because the ruleset sits right there in the tree looking convincing.
 #
-# It was restored here after `hooks-audit` found the original in .git/hooks, shadowed by a
-# core.hooksPath set later. Once hooksPath is set git stops reading .git/hooks entirely, so that
-# copy had been executable, plausible and dead for as long as the config had been there.
-set -euo pipefail
+# Two checks, in cost order. Secrets first, because a leaked credential is the expensive one; then
+# vocabulary, which catches a denylisted term while the fix is still cheap. At pre-push the repair is
+# an interactive rebase across every commit carrying the term; here it is an edit to a file you
+# already have open.
+set -uo pipefail
+root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 
-if ! command -v gitleaks >/dev/null 2>&1; then
+# --- 1. secrets ---------------------------------------------------------------------------------
+if command -v gitleaks >/dev/null 2>&1; then
+  if ! gitleaks protect --staged --redact; then
+    echo "pre-commit: gitleaks found a secret in the staged changes. Commit blocked." >&2
+    echo "  Remove the secret rather than bypassing: --no-verify leaves it in the history." >&2
+    exit 1
+  fi
+else
   # Say so rather than passing quietly. A scanner that is not installed and does not mention it is
-  # indistinguishable from a scan that found nothing, which is the failure this project is about.
-  echo "pre-commit: gitleaks is not installed, so staged changes were NOT scanned locally." >&2
+  # indistinguishable from a scan that found nothing.
+  echo "pre-commit: gitleaks is not installed, so staged changes were NOT scanned for secrets." >&2
   echo "  CI still runs the scan, so this is a lost fast-fail rather than a hole." >&2
-  echo "  Install it to restore the local gate: https://github.com/gitleaks/gitleaks" >&2
-  exit 0
 fi
 
-if ! gitleaks protect --staged --redact; then
-  echo "pre-commit: gitleaks found a secret in the staged changes. Commit blocked." >&2
-  echo "  Remove the secret rather than bypassing: --no-verify leaves it in the history." >&2
+# --- 2. vocabulary ------------------------------------------------------------------------------
+#
+# SCOPED TO REPOSITORIES WITH A PUBLIC REMOTE, deliberately. A private repository whose entire
+# purpose is to hold restricted content would fail this on every commit, and a hook that blocks
+# every commit gets uninstalled within the hour. Egress is the thing being gated, so the presence of
+# an egress path is what arms the gate. Override either way with:
+#     git config neurokeeper.egressGate.precommit always|never
+case "$(git config neurokeeper.egressGate.precommit || echo auto)" in
+  never)  exit 0 ;;
+  always) ;;
+  *)
+    if ! git remote -v 2>/dev/null | grep -qiE 'github[.]com|gitlab[.]com/[^ ]*/public'; then
+      exit 0
+    fi
+    ;;
+esac
+
+if command -v neurokeeper >/dev/null 2>&1; then
+  gate="neurokeeper egress-gate"
+elif [ -f "$root/scripts/egress-gate.py" ]; then
+  gate="python $root/scripts/egress-gate.py"
+else
+  echo "pre-commit: egress-gate not found; REFUSING commit (set" >&2
+  echo "  neurokeeper.egressGate.precommit=never if this repo should not be gated)." >&2
+  exit 1
+fi
+
+if ! $gate --staged; then
+  echo "" >&2
+  echo "pre-commit: denylisted vocabulary in the staged change -> REFUSING commit." >&2
+  echo "  Fix it now: amending later means rewriting history across every commit that" >&2
+  echo "  carries the term, and the term ships in the objects either way until you do." >&2
   exit 1
 fi

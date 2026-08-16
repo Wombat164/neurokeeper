@@ -120,6 +120,7 @@ already exists, and get the evidence for that answer. Read-only.
 2. Read the `state` and the `evidence`, not just the score:
    - `anchored` - the vault covers this; the top candidate is the note.
    - `correlated` - right neighbourhood; use the candidate list.
+   - `weak` - it scored, but on nothing individually convincing. Go and look yourself.
    - `ambiguous` - two candidates point at genuinely different subjects. This is the one worth a
      human or a model look.
    - `topic-known` - a code matched but no note reached the bar.
@@ -276,7 +277,7 @@ existing markdown ecosystem instead of duplicating it.
    ```yaml
    repos:
      - repo: https://github.com/Wombat164/neurokeeper
-       rev: v0.7.0
+       rev: v0.8.0
        hooks: [{ id: neurokeeper-doctor }]   # or: neurokeeper-ref-audit
    ```
    pre-commit installs the package in an isolated venv and runs the CLI against the repo root.
@@ -286,7 +287,7 @@ existing markdown ecosystem instead of duplicating it.
    - uses: actions/checkout@v4
    - uses: DavidAnson/markdownlint-cli2-action@v16    # markdown style (not neurokeeper's job)
    - uses: lycheeverse/lychee-action@v2               # external link existence (not neurokeeper's job)
-   - uses: Wombat164/neurokeeper@v0.7.0            # broken wikilinks/.canvas/.base, orphans, health
+   - uses: Wombat164/neurokeeper@v0.8.0            # broken wikilinks/.canvas/.base, orphans, health
      with: { vault-path: ".", engine: "doctor", strict: "false" }
    ```
 3. Understand what fails it. The exit code follows the doctor contract: broken `.canvas`/`.base` refs or an
@@ -330,6 +331,14 @@ cost ~nothing - without changing your default `claude`.
 ## Add a new engine
 
 **Goal:** add a new portable capability that the registry will pick up automatically.
+
+> [!tip] First decide whether it belongs here at all
+> This recipe is for an engine that goes **into the core**, which means it must be useful to people
+> whose collections look nothing like yours. If it encodes your vocabulary, your org's fields, or
+> your team's policy, it belongs in **your** repository instead, and it can still be a first-class
+> `neurokeeper` command: see [[how-to/extend-with-your-own-engine|Extend with your own engine]].
+> The decision test is there too. Getting this wrong in the upstream direction is the expensive
+> one: a domain-specific check in a portable core is carried by every user forever.
 
 1. **Write the engine first.** A single deterministic script that computes facts/candidates (or applies
    a deterministic transform). Make it speak the contract: a `--json` flag and meaningful exit codes,

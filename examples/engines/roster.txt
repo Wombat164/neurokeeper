@@ -1,0 +1,6 @@
+# Config for the example EXTERNAL engine beside this file. One owner per line.
+# It lives here rather than in the core because a roster is your organisation's vocabulary.
+# To watch the gate fire, comment out a name below and re-run with --check.
+ada.lovelace
+grace.hopper
+alan.turing

@@ -60,10 +60,17 @@ def test_code_match_is_a_strong_signal(corr_vault):
     assert out["a"]["state"] in ("correlated", "anchored")
 
 
-def test_title_phrase_anchors(corr_vault):
+def test_title_phrase_is_the_top_candidate(corr_vault):
+    """A note's title appearing verbatim in the item puts that note first.
+
+    It does NOT on its own reach `anchored`: the phrase channel has one budget per note, so a note's
+    title and its abbreviation are one match, not two. Anchoring on a title match therefore needs
+    corroboration from a genuinely different channel, which is what `anchored` ought to mean.
+    """
     out = run_engine(corr_vault, [{"id": "a", "title": "Re: Widget Programme timeline"}])
-    assert out["a"]["state"] == "anchored"
     assert out["a"]["candidates"][0]["note"].endswith("widget-programme.md")
+    assert out["a"]["state"] == "correlated"
+    assert out["a"]["score"] >= 40
 
 
 def test_alias_is_matched_like_a_title(corr_vault):
@@ -155,10 +162,17 @@ def test_anchor_floor_blocks_weak_signal_pileup():
     assert mod.W_PERSON < mod.MIN_ANCHOR_SIGNAL
     assert mod.W_TAG < mod.MIN_ANCHOR_SIGNAL
 
-    # The floor therefore has to fire: capped below ANCHORED, and said so.
+    # The floor therefore has to fire: held below ANCHORED, and SAID SO in the state.
+    #
+    # This asserts the outcome rather than the wording. The protection used to be an evidence string
+    # containing "capped"; it is now a per-channel budget plus a distinct `weak` state, which is
+    # strictly stronger, and a test pinned to the old phrasing would have failed on an improvement.
+    # What must never change is that a pile of individually-too-weak signals cannot read as a match.
     assert cand["score"] < mod.ANCHORED, cand
     assert res["state"] != "anchored", res
-    assert any("capped" in e for e in cand["evidence"]), cand["evidence"]
+    assert res["state"] == "weak", (
+        f"a pileup of sub-floor signals must report `weak`, not {res['state']!r}: "
+        f"saying 'correlated' here hands the reader candidates and an invitation to stop looking")
 
 
 def test_vault_without_any_frontmatter_still_works(tmp_path):
@@ -251,7 +265,8 @@ def test_no_schema_flag_falls_back_to_engine_defaults(schema_vault):
 def test_missing_schema_is_not_an_error(corr_vault):
     """A vault with no schema keeps working on the engine defaults."""
     out = run_engine(corr_vault, [{"id": "a", "title": "Re: Widget Programme timeline"}])
-    assert out["a"]["state"] == "anchored"
+    assert out["a"]["state"] == "correlated"
+    assert out["a"]["candidates"][0]["note"].endswith("widget-programme.md")
 
 
 def test_broken_schema_warns_but_does_not_crash(schema_vault):
@@ -269,6 +284,134 @@ def test_explicit_config_overrides_the_schema(schema_vault, tmp_path):
                      extra=["--config", str(cfg)])
     assert not out["a"]["candidates"] or not any(
         "code XY-9" in e for e in out["a"]["candidates"][0]["evidence"])
+
+
+@pytest.fixture()
+def channel_vault(tmp_path):
+    """A vault built to isolate one scoring channel per note.
+
+    `people-hub` is reachable ONLY through shared participants, `alpha-initiative-review` only
+    through a code that lives in its title and filename, `declared-holder` only through a declared
+    frontmatter code, and `mixed-signals` only through several individually sub-threshold signals.
+    """
+    v = tmp_path / "cv"
+    (v / "notes").mkdir(parents=True)
+
+    (v / "notes" / "people-hub.md").write_text(
+        "---\ntitle: Coordination Hub\n"
+        "stakeholders: [Alice Anderson, Bob Brown, Carol Clark, Dave Dawson, Erin Evans]\n"
+        "---\nRoutine coordination.\n", encoding="utf-8")
+    # Carries the code in filename + title only; declares nothing.
+    (v / "notes" / "alpha-initiative-review.md").write_text(
+        "---\ntitle: Alpha Initiative Review\n---\nBody text.\n", encoding="utf-8")
+    # Declares BETA-9 but never spells it out in title or filename.
+    (v / "notes" / "declared-holder.md").write_text(
+        "---\ntitle: Quarterly Holder\ncontract: BETA-9\n---\nBody text.\n", encoding="utf-8")
+    # Wears BETA-9 in filename + title, declares nothing.
+    (v / "notes" / "beta-9-mentioned.md").write_text(
+        "---\ntitle: Beta 9 Mentioned\n---\nBody text.\n", encoding="utf-8")
+    # Reachable only by sub-threshold signals: token overlap, a tag, and participants. Its people are
+    # disjoint from people-hub's, so each note isolates exactly one channel.
+    (v / "notes" / "mixed-signals.md").write_text(
+        "---\ntitle: Zeppelin Marmalade Quinine\ntags: [thunderclap]\n"
+        "stakeholders: [Frank Foster, Gina Grant, Hank Hills]\n---\nBody text.\n",
+        encoding="utf-8")
+    for i in range(12):
+        (v / "notes" / f"filler-{i}.md").write_text(
+            f"---\ntitle: Routine Item {i}\n---\nFiller.\n", encoding="utf-8")
+    return v
+
+
+PEOPLE = ["alice.anderson@example.org", "bob.brown@example.org", "carol.clark@example.org",
+          "dave.dawson@example.org", "erin.evans@example.org"]
+MIXED_PEOPLE = ["frank.foster@example.org", "gina.grant@example.org", "hank.hills@example.org"]
+
+
+def test_person_channel_alone_cannot_leave_the_new_band(channel_vault):
+    """Five shared participants and nothing else must not reach `correlated`.
+
+    Participant overlap is the weakest channel there is in a small organisation, where the same
+    handful of people appear on most notes. Uncapped it used to stack into the `correlated` band.
+    """
+    out = run_engine(channel_vault, [
+        {"id": "a", "title": "unrelated subject line", "participants": PEOPLE}])
+    top = out["a"]["candidates"][0]
+    assert top["note"].endswith("people-hub.md"), "the person channel must still surface the note"
+    assert out["a"]["score"] < 40, f"person-only pileup escaped the NEW band: {top}"
+    assert out["a"]["state"] == "new"
+
+
+def test_code_in_title_and_filename_outranks_a_person_only_match(channel_vault):
+    """A code the note only WEARS still beats a note that merely shares every participant."""
+    out = run_engine(channel_vault, [
+        {"id": "a", "title": "", "codes": ["ALPHA-INITIATIVE"], "participants": PEOPLE}])
+    notes = [c["note"] for c in out["a"]["candidates"]]
+    assert any(n.endswith("alpha-initiative-review.md") for n in notes), notes
+    assert notes[0].endswith("alpha-initiative-review.md"), notes
+    assert any("(title)" in e for e in out["a"]["candidates"][0]["evidence"])
+
+
+def test_declared_code_outranks_a_title_only_code(channel_vault):
+    """Same token, two notes: the one that DECLARES it must win."""
+    out = run_engine(channel_vault, [{"id": "a", "title": "", "codes": ["BETA-9"]}])
+    ranked = {c["note"]: c["score"] for c in out["a"]["candidates"]}
+    declared = next(n for n in ranked if n.endswith("declared-holder.md"))
+    worn = next(n for n in ranked if n.endswith("beta-9-mentioned.md"))
+    assert ranked[declared] > ranked[worn], ranked
+    assert out["a"]["candidates"][0]["note"] == declared, ranked
+    assert any("(declared)" in e for e in out["a"]["candidates"][0]["evidence"])
+
+
+def test_only_sub_threshold_signals_report_weak_not_correlated(channel_vault):
+    """40+ built entirely out of signals below MIN_ANCHOR_SIGNAL is `weak`, never `correlated`."""
+    out = run_engine(channel_vault, [
+        {"id": "a", "title": "quinine marmalade zeppelin thunderclap",
+         "participants": MIXED_PEOPLE}])
+    top = out["a"]["candidates"][0]
+    assert top["note"].endswith("mixed-signals.md"), top
+    assert top["score"] >= 40, top
+    assert out["a"]["state"] == "weak", out["a"]
+    assert out["a"]["weak"] is True
+
+
+def test_two_aliases_of_one_note_are_not_two_signals(tmp_path):
+    """An alias is another name for the SAME note, so a second name is not corroboration.
+
+    Uncapped this was the one channel strong enough to defeat both guards: two hits scored 70 and
+    anchored, and each hit individually cleared MIN_ANCHOR_SIGNAL, so neither the floor rule nor the
+    `weak` state saw anything wrong.
+    """
+    v = tmp_path / "pv"
+    (v / "notes").mkdir(parents=True)
+    (v / "notes" / "many-names.md").write_text(
+        "---\ntitle: Zeppelin Committee\naliases: [Marmalade Working Group]\n---\nBody.\n",
+        encoding="utf-8")
+    for i in range(12):
+        (v / "notes" / f"filler-{i}.md").write_text(
+            f"---\ntitle: Routine Item {i}\n---\nFiller.\n", encoding="utf-8")
+
+    out = run_engine(v, [{"id": "a", "title": "Zeppelin Committee and Marmalade Working Group"}])
+    top = out["a"]["candidates"][0]
+    assert top["note"].endswith("many-names.md"), top
+    assert out["a"]["state"] != "anchored", out["a"]
+    assert top["score"] < 70, top
+
+
+def test_abbreviated_alias_inside_a_longer_name_scores_once(corr_vault):
+    """'Widget Prog' sits inside 'Widget Programme': one match seen twice, not two matches."""
+    out = run_engine(corr_vault, [{"id": "a", "title": "Re: Widget Programme timeline"}])
+    top = out["a"]["candidates"][0]
+    assert top["note"].endswith("widget-programme.md")
+    phrases = [e for e in top["evidence"] if e.startswith("phrase ")]
+    assert len(phrases) == 1, phrases
+
+
+def test_capped_evidence_stays_within_the_declared_width():
+    """The `capped:` marker takes a slot inside EVIDENCE_MAX, it does not extend the list."""
+    mod = _load_engine_module()
+    res = mod.correlate({"id": "x", "title": "alpha beta gamma delta epsilon"}, _tiny_index(mod))
+    for cand in res["candidates"]:
+        assert len(cand["evidence"]) <= mod.EVIDENCE_MAX, cand
 
 
 def test_registered_in_neurokeeper_cli():
@@ -292,3 +435,63 @@ def _tiny_index(mod):
         "title": "Alpha Beta Gamma Delta Epsilon", "aliases": [], "tags": [],
         "codes": [], "people": [], "links_out": [], "note_type": None})]
     return mod.VaultIndex(cards)
+
+
+# --- record-number patterns ------------------------------------------------------------------
+
+def _register(tmp_path, patterns):
+    import yaml
+    p = tmp_path / "register.yaml"
+    p.write_text(yaml.safe_dump({"identifier_patterns": patterns}), encoding="utf-8")
+    return ["--register", str(p)]
+
+
+def test_record_number_matches_body_text_on_both_sides(corr_vault, tmp_path):
+    """The point of the channel: neither side declares anything, both merely mention the number."""
+    (corr_vault / "notes" / "order-log.md").write_text(
+        "---\ntitle: Order Log\n---\nDelivery for 60B00027 is late.\n", encoding="utf-8")
+    reg = _register(tmp_path, {"order": {"match": r"(?<![0-9A-Za-z])\d[0-9A-Z][A-Z][0-9A-Z]{5}(?![0-9A-Za-z])",
+                                         "min_digits": 6}})
+    out = run_engine(corr_vault, [{"id": "a", "title": "Invoice for 60B00027"}], reg)
+    top = out["a"]["candidates"][0]
+    assert top["note"].endswith("order-log.md")
+    assert any("record 60B00027" in e for e in top["evidence"])
+
+
+def test_min_digits_rejects_a_word_shaped_match(corr_vault, tmp_path):
+    (corr_vault / "notes" / "hashy.md").write_text(
+        "---\ntitle: Hashy\n---\nCommit 9AB41235 landed.\n", encoding="utf-8")
+    reg = _register(tmp_path, {"order": {"match": r"\b[0-9A-Z]{8}\b", "min_digits": 7}})
+    out = run_engine(corr_vault, [{"id": "a", "title": "About 9AB41235"}], reg)
+    assert not any("record" in e for c in out["a"]["candidates"] for e in c["evidence"])
+
+
+def test_record_channel_is_capped_so_an_index_note_cannot_win(corr_vault, tmp_path):
+    """A note LISTING many numbers must not outrank one that is about a single one."""
+    (corr_vault / "notes" / "tracker.md").write_text(
+        "---\ntitle: Tracker\n---\n60B00027 60B00028 60B00029 60B00030 60B00031\n", encoding="utf-8")
+    reg = _register(tmp_path, {"order": {"match": r"(?<![0-9A-Za-z])\d[0-9A-Z][A-Z][0-9A-Z]{5}(?![0-9A-Za-z])",
+                                         "min_digits": 6}})
+    out = run_engine(corr_vault, [{"id": "a", "title": "60B00027 60B00028 60B00029 60B00030 60B00031"}], reg)
+    top = out["a"]["candidates"][0]
+    assert top["score"] <= 45 + 25, f"record channel exceeded its budget: {top['evidence']}"
+    assert any("budget spent" in e for e in top["evidence"])
+
+
+def test_changing_patterns_invalidates_the_cache(corr_vault, tmp_path):
+    """patcodes are baked into the cached card, and the note file has not changed."""
+    (corr_vault / "notes" / "order-log.md").write_text(
+        "---\ntitle: Order Log\n---\nDelivery for 60B00027.\n", encoding="utf-8")
+    item = [{"id": "a", "title": "Invoice for 60B00027"}]
+    run_engine(corr_vault, item)                      # no patterns: caches patcodes = []
+    reg = _register(tmp_path, {"order": {"match": r"(?<![0-9A-Za-z])\d[0-9A-Z][A-Z][0-9A-Z]{5}(?![0-9A-Za-z])",
+                                         "min_digits": 6}})
+    out = run_engine(corr_vault, item, reg)           # same cache file, patterns now present
+    assert any("record 60B00027" in e for c in out["a"]["candidates"] for e in c["evidence"]), \
+        "stale cache swallowed the pattern channel"
+
+
+def test_a_broken_pattern_is_skipped_not_fatal(corr_vault, tmp_path):
+    reg = _register(tmp_path, {"bad": "([unclosed", "ok": r"\bPROJ-\d\b"})
+    out = run_engine(corr_vault, [{"id": "a", "title": "About delivery", "codes": ["PROJ-1"]}], reg)
+    assert out["a"]["candidates"], "one bad regex sank the whole run"

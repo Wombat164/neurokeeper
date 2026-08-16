@@ -1,0 +1,49 @@
+{
+  "_comment": [
+    "Vendor manifest (example). Copy, edit, and point VENDOR_MANIFEST at it.",
+    "",
+    "Declares files you keep as RESIDENT COPIES on purpose, rather than as shims over the upstream",
+    "engine. Most consumer scripts should be shims, so an upstream fix arrives with no manual step.",
+    "Some cannot be: a file called by a gate in another repository, on machines where this project",
+    "was never cloned, must not exit when the engine is absent.",
+    "",
+    "Those copies then get documented as 'kept in sync by hand', which is a hope rather than a",
+    "control. One drifted to 311 lines against upstream's 416, missing an entire flag and four",
+    "functions, and nothing noticed, because a stale analyzer reports cheerfully.",
+    "",
+    "vendor-audit reports that UPSTREAM MOVED since reconciliation. It never reports that the two",
+    "files differ: they always differ, that is the point of the copy, and a check that fires",
+    "constantly is one nobody reads.",
+    "",
+    "It also does not auto-sync in either direction, deliberately. Pulling upstream over a resident",
+    "copy discards local configuration; pushing the other way leaks consumer specifics into a",
+    "portable core. The machine notices, a human reconciles, --adopt records the new baseline."
+  ],
+
+  "entries": [
+    {
+      "local": "scripts/memory-consolidate.py",
+      "upstream": "../neurokeeper/scripts/memory-consolidate.py",
+      "upstream_sha256": "run --adopt to fill this in",
+      "reconciled": "2026-08-16",
+      "why_resident": "called by the memory backup repo's pre-commit gate, which lives in a different repository and must work on machines with no clone of the engine here",
+      "_comment": [
+        "why_resident is REQUIRED. A vendored copy with no stated reason cannot be told apart from an",
+        "accident, which is how the drifted one got lost.",
+        "",
+        "Relative paths resolve against this manifest's own directory, so it stays portable between",
+        "checkouts. Upstream being ABSENT is not drift: a machine without the source checked out is",
+        "the exact situation a resident copy exists for."
+      ]
+    }
+  ],
+
+  "_comment_recipe": [
+    "The vendoring shape that makes re-syncing cheap: a consumer preamble, a marker line, then the",
+    "upstream file byte for byte. Re-vendoring is then a concatenation, and the diff to review is",
+    "genuinely the upstream diff rather than a merge:",
+    "",
+    "    cat <preamble> <upstream>/scripts/<engine>.py > <local>/scripts/<engine>.py",
+    "    neurokeeper vendor-audit --adopt"
+  ]
+}

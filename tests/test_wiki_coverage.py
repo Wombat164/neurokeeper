@@ -31,7 +31,13 @@ INTERNAL = {
 # Universal flags not worth a per-engine catalog entry.
 # Not neurokeeper CLI flags: `--help` is universal; the rest are args passed to a `git` subprocess
 # (ref-audit `--since` shells out to `git rev-parse` / `git diff`), so they must not demand a wiki entry.
-IGNORE_FLAGS = {"--help", "--show-toplevel", "--name-only"}
+IGNORE_FLAGS = {
+    "--help", "--show-toplevel", "--name-only",
+    # Flags belonging to a git subcommand invoked via subprocess, not to the engine's own CLI.
+    # The scraper cannot tell an argparse declaration from an argv element, and documenting
+    # git's flags in this harness's reference would be documenting the wrong tool.
+    "--cached", "--no-color", "--not", "--remotes", "--diff-filter", "--unified",
+}
 
 
 def _engines_from_cli():

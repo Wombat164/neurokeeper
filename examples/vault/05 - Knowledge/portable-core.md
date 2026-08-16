@@ -1,5 +1,6 @@
 ---
 note_type: knowledge
+owner: alan.turing
 status: active
 maturity: current
 horizon: timeless

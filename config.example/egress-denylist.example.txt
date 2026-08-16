@@ -1,0 +1,41 @@
+# Egress denylist (example). Copy, edit, and point EGRESS_DENYLIST at it.
+#
+# One term per line. A bare line is a literal (case-insensitive); a line beginning with "regex:" is
+# a regular expression. Blank lines and lines starting with # are ignored.
+#
+# KEEP THIS FILE PRIVATE. It enumerates the things you do not want published, so publishing it would
+# itself disclose what it scrubs. Ship the example, never the real one.
+
+# --- literals -----------------------------------------------------------------------------------
+# A literal always matches itself, so it needs no example comment.
+AcmeCorp
+Project Northwind
+
+# --- regex, with a mandatory example --------------------------------------------------------------
+# Every regex entry SHOULD carry a "# example:" comment naming a string it must match.
+#
+# denylist-audit uses it to prove the entry is still live. This is not bureaucracy: narrowing a term
+# once produced a pattern containing a literal backspace character, which matched NOTHING AT ALL. A
+# term silently disabled is worse than one that over-fires, because over-firing is visible and this
+# is not. Without an example, liveness cannot be established and the audit says so.
+regex:(?i)\bACME\b        # example: ACME
+regex:(?i)NW-\d{4}          # example: NW-2026
+
+# --- why word boundaries matter --------------------------------------------------------------------
+# A short term listed bare matches INSIDE ordinary English. Listing RATI without boundaries flags
+# every occurrence of "operational", the check fires on innocent prose, and someone switches it off.
+#   wrong:  RATI
+#   right:  regex:(?i)\bRATI\b    # example: RATI
+
+# --- families ---------------------------------------------------------------------------------------
+# List every member of a family, or none of them. A PARTIALLY listed family is worse than an
+# unlisted one: the member that IS caught is exactly what makes the clean verdict on its siblings
+# credible, so the gate is not silent, it is actively reassuring.
+#
+# Where you also keep an identifier register, denylist-audit cross-checks families for you and the
+# check is fully deterministic, because the register already knows which identifiers are siblings:
+#
+#     neurokeeper denylist-audit --denylist <this file> --register <register.yaml>
+NW-1001
+NW-1002
+NW-1003

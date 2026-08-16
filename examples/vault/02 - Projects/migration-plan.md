@@ -1,5 +1,6 @@
 ---
 note_type: project
+owner: grace.hopper
 status: draft
 maturity: proposed
 horizon: mid

@@ -6,6 +6,57 @@ Full per-release notes: https://github.com/Wombat164/neurokeeper/releases
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-08-16
+
+The release that stops the core from being the only place an engine can live.
+
+### Added
+- **A plugin seam: engines can now live in someone else's repository.** `NEUROKEEPER_ENGINE_PATH`
+  names directories the dispatcher searches, so `neurokeeper acme-owner-audit` runs an engine this
+  project has never seen. It answers a question ADR-0004 kept creating: the core refuses
+  domain-specific content, which left "add it upstream" as the wrong answer for most real needs and
+  forking or vendoring as the worse ones. The directory is the manifest, because a name-to-path
+  index file is a second surface that drifts. Only files carrying an `@capability` header register,
+  so a helper module beside an engine does not become a phantom command, and a name that collides
+  with a built-in is refused rather than resolved in either direction: a core engine quietly
+  replaced would make every report from this tool untrustworthy.
+- **`neurokeeper.lib`**, the stable import surface external engines build on, so nobody has to
+  import a private `_module` that moves, or re-implement the frontmatter parse and the markdown
+  walk. Divergent copies of those are exactly how two tools come to disagree about the same note.
+- **External engines can join the `doctor` roll-up**, by opting in with a `@doctor: gate` or
+  `@doctor: advisory` header and never automatically: being dispatchable must not mean "run this
+  whenever someone asks about the health of my collection". Each engine in the report now carries
+  an `origin`, because an operator reading a health summary is entitled to know whose engine
+  produced which finding.
+- **How-to: "Extend with your own engine"**, whose worked example is extracted from the page and
+  executed by the test suite. A documented example that no longer runs is worse than none: it is a
+  confident claim about the code that a reader will debug for an hour before doubting.
+- **Example config for every file-shaped setting an engine reads**, plus a gate that keeps it that
+  way. `custody-audit`, `vendor-audit` and the egress denylist shipped with no example between them,
+  so a reader had to reverse-engineer the format from source. An engine that needs a config file
+  nobody can see the shape of is an engine nobody adopts, which is the same class as an
+  undocumented flag and now gets the same treatment. The denylist example is asserted to pass its
+  own audit, since an example that would fail the check teaches a shape that does not work.
+
+### Fixed
+- **Two ways an external engine's failure could have been invisible**, both found by writing the
+  tests. `argparse` exits 2 for an unrecognised flag and exit 2 already means NOT CONFIGURED, so an
+  engine that never implemented `--check` would have been reported as a tidy skip while its entire
+  subject went unchecked and the roll-up stayed green; that is now distinguished and reported as an
+  error. And an engine declaring `advisory` while exiting 1 is a contract breach rather than an
+  `ok`, since otherwise its only way of saying something is wrong would be swallowed by the
+  participation level it declared for itself.
+- **`--list` swallowed the one error discovery most needs to report.** A defensive `except
+  SystemExit` meant that a `NEUROKEEPER_ENGINE_PATH` entry which does not exist produced a listing
+  of the built-ins and silence about the external engines that had just gone missing, which reads
+  as "you have none" rather than "your configuration is wrong".
+
+### Changed
+- **The bundled example vault now demonstrates the seam**, and CI proves it in both directions on
+  every push: the external engine dispatches, composes into `doctor` tagged `origin: external`, and
+  is then re-run against a shortened roster so the gate is observed FAILING. A detector only ever
+  observed passing is not known to detect anything.
+
 ## [0.7.0] - 2026-08-16
 
 ### Added

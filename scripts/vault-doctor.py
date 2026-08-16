@@ -42,9 +42,27 @@ except Exception:
 
 
 def _run(engine, eargs):
-    r = subprocess.run([sys.executable, os.path.join(HERE, engine), *eargs],
-                       capture_output=True, text=True)
+    # An external engine is named by absolute path; a built-in by filename relative to HERE.
+    script = engine if os.path.isabs(engine) else os.path.join(HERE, engine)
+    if not os.path.isfile(script):
+        # Checked BEFORE running, because the interpreter exits 2 when it cannot open a script and
+        # 2 already means NOT CONFIGURED. A missing engine therefore reported as a tidy skip, with
+        # the whole subject unexamined and the roll-up green. Reported as an error instead.
+        return -1, "", f"engine file not found: {script}"
+    r = subprocess.run([sys.executable, script, *eargs], capture_output=True, text=True)
     return r.returncode, r.stdout, r.stderr
+
+
+def _rejected_our_flags(stderr):
+    """Did the engine exit 2 because it could not parse --check/--json, rather than as a skip?
+
+    Deliberately narrow. A false positive turns a legitimate skip into a reported error, so this
+    matches only the shapes an argument parser produces when it refuses a flag.
+    """
+    s = (stderr or "").lower()
+    return ("unrecognized argument" in s or "unrecognised argument" in s
+            or "no such option" in s or "invalid choice" in s
+            or ("usage:" in s and "error:" in s))
 
 
 def _version():
@@ -104,10 +122,30 @@ def main():
         ("memory-consolidate", "memory-consolidate.py", ["--check"], True, has_mem),
     ]
 
+    # Engines from elsewhere that opted in with a `@doctor:` header. They run LAST and are listed
+    # separately in the report: an operator reading a health summary is entitled to know which
+    # findings came from this project's engines and which came from someone else's. Their file path
+    # is absolute, so _run's join against HERE is bypassed on purpose.
+    external = []
+    try:
+        from _engine_path import doctor_participants
+        external = doctor_participants()
+    except SystemExit:
+        raise
+    except Exception:
+        external = []
+    # Invoked exactly as a built-in is: --check asserts read-only, --json carries counts into the
+    # report. This is a stated condition of declaring @doctor, not a guess about someone's CLI.
+    # The trap it opens is closed below: argparse exits 2 on an unrecognised flag, and 2 means
+    # NOT CONFIGURED, so an engine that ignored the contract would be reported as a tidy skip.
+    plan += [(name, path, ["--check", "--json"], gates, True) for name, path, gates in external]
+    external_names = {name for name, _p, _g in external}
+
     results, failed, scan_count, t0 = [], [], None, time.perf_counter()
     for name, engine, eargs, gates, applicable in plan:
         if not applicable:
-            results.append({"engine": name, "state": "skipped", "reason": "required config not set"})
+            results.append({"engine": name, "state": "skipped", "reason": "required config not set",
+                            "origin": ("external" if name in external_names else "built-in")})
             continue
         rc, out, err = _run(engine, eargs)
         data = None
@@ -123,6 +161,15 @@ def main():
                 scan_count = data["files"]
         if rc == 0:
             state = "ok"
+        elif rc == 2 and name in external_names and _rejected_our_flags(err):
+            # argparse also exits 2 for an unrecognised flag, which collides with NOT CONFIGURED.
+            # Left alone, an engine that never implemented --check would be reported as a tidy skip
+            # and its whole subject would go unchecked while the roll-up stayed green.
+            state = "error"; failed.append(name)
+            err = (err + "\n" if err else "") + (
+                "doctor invokes participants with '--check --json' and this engine rejected them. "
+                "Implement both flags, or drop the '@doctor:' header. Reported as an error rather "
+                "than a skip because exit 2 would otherwise read as 'not configured'.")
         elif rc == 2:
             state = "skipped"             # NOT CONFIGURED (e.g. schema absent) -> not a health failure
         elif rc == 3:
@@ -132,10 +179,19 @@ def main():
             state = "error"; failed.append(name)
         elif gates and rc == 1:
             state = "fail"; failed.append(name)
+        elif rc == 1 and name in external_names:
+            # Declared advisory, exited 1. Reported as a contract breach rather than quietly
+            # downgraded to 'ok': the alternative is that an engine's only way of saying something
+            # is wrong gets swallowed by the level it declared for itself.
+            state = "error"; failed.append(name)
+            err = (err + "\n" if err else "") + (
+                "declared '@doctor: advisory' but exited 1. Advisory engines report and exit 0; "
+                "exit 1 means a gate failed. Declare '@doctor: gate' or return 0.")
         else:
             state = "error"; failed.append(name)
         results.append({
             "engine": name, "state": state, "exit": rc,
+            "origin": ("external" if name in external_names else "built-in"),
             "summary": (data.get("counts") if isinstance(data, dict) and "counts" in data else None),
             "stderr": (err.strip()[:200] if state == "error" else None),
         })
