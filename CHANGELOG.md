@@ -6,6 +6,30 @@ Full per-release notes: https://github.com/Wombat164/neurokeeper/releases
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-08-16
+
+### Added
+- **`custody-audit`**: asks whether the substrate is actually kept, which no content check does.
+  Four questions and nothing more: is each declared artifact tracked or deliberately ignored with a
+  stated disposition; where the disposition is ignored-with-an-example, is there a current and
+  committed encrypted counterpart; is HEAD on a declared remote (a local ref comparison, no
+  network); and is this the canonical working copy. Scheduled work is checked by receipt freshness,
+  never by introspecting systemd, cron or Task Scheduler.
+- The quickstart demo card derives its version from the package at render time. It read
+  "neurokeeper 0.4.0" while the package was at 0.6.0: `check-release` inspects prose pins and cannot
+  see inside a rendered image, so the only safe version in a demo is one taken at render time.
+- **`--staged`** completes the enforcement-scoping family beside `--since` and `--baseline`, on
+  `ref-audit` and forwarded by `doctor`: scope findings to the git index, so a new rule reports what
+  this commit introduces rather than the collection's whole history on day one. Out-of-scope
+  findings are COUNTED and named (`pre_existing_out_of_scope`) rather than discarded, because a
+  scoped run that prints nothing reads as a clean collection.
+- **`hooks-audit`**: finds gates that look installed and do not run. Reports hooks that are
+  untracked (a control only this machine has), shadowed by `core.hooksPath` (git stops reading
+  `.git/hooks` once it is set, so anything left there is executable and dead), shipped but not
+  wired, or pointed at a directory that is not there. Run against this repository it found its own
+  staged-changes secret scan sitting shadowed in `.git/hooks`, which is now restored as a tracked
+  hook that clones with the tree.
+
 ## [0.5.0] - 2026-08-16
 
 ### Added

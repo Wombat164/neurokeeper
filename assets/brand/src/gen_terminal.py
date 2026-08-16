@@ -10,7 +10,18 @@ of a health report to make a nicer picture would be a lie about what the tool pr
 Monospace makes layout exact: every glyph advances 0.6em, so a column index is a position. Text is
 outlined afterwards, so nothing depends on the reader having the font.
 """
+import pathlib
+import re
 import sys
+
+# Derived, never written down. This card read "neurokeeper 0.4.0" while the package was already at
+# 0.6.0, because check-release inspects prose pins and cannot see inside a rendered image. The only
+# safe version in a demo is one taken from the package at render time.
+def _version():
+    root = pathlib.Path(__file__).resolve().parents[3]
+    m = re.search(r'(?m)^version = "([^"]+)"', (root / "pyproject.toml").read_text(encoding="utf-8"))
+    return m.group(1) if m else "unknown"
+
 
 OUT, BG, FG, MUTED, ACCENT, DIM = sys.argv[1:7]
 
@@ -25,7 +36,7 @@ LINES = [
     [(0, "$", "accent"), (2, "neurokeeper doctor --check", "fg")],
     [],
     [(0, "=== neurokeeper doctor ===", "fg")],
-    [(0, "root examples/vault | 4 files scanned | neurokeeper 0.4.0 | 581ms", "muted")],
+    [(0, f"root examples/vault | 4 files scanned | neurokeeper {_version()} | 592ms", "muted")],
     [(2, "[ok]", "accent"), (10, "taxonomy-inventory", "fg")],
     [(2, "[ok]", "accent"), (10, "ref-audit", "fg"),
      (21, "broken_links=1, broken_canvas=0, broken_base=0,", "muted")],

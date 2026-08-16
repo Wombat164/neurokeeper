@@ -27,6 +27,8 @@ ENGINES = {
     "check-release":      "check-release.py",
     "vendor-audit":       "vendor-audit.py",
     "selftest":           "selftest.py",
+    "hooks-audit":        "hooks-audit.py",
+    "custody-audit":      "custody-audit.py",
 }
 
 

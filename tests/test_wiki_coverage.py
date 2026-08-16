@@ -44,10 +44,29 @@ def _engines_from_cli():
     return dict(pairs)
 
 
+# A line that hands arguments to another program. Flags there belong to THAT program, not to the
+# engine, and requiring them in the engine's own wiki entry is a false positive: the first engine to
+# shell out to git was reported as owning --git-path and --is-inside-work-tree.
+# `_git(...)` is the usual private wrapper name, and \b does not match between "_" and "g" because
+# both are word characters, so an earlier version of this pattern missed it and reported git's
+# --cached as a ref-audit flag. The lookbehind allows git( and _git( while excluding legit(.
+_SUBPROCESS_LINE = re.compile(r"""subprocess\.|(?<![A-Za-z0-9])_?git\s*\(|\[\s*["']git["']""")
+
+
 def _declared_flags(engine_filename):
-    """Every `--flag` literal in an engine's source -- catches argparse, `x in args`, and `== '--x'`."""
+    """Every `--flag` literal an engine parses for ITSELF.
+
+    Deliberately still a broad literal scan rather than a read of argparse: several engines parse
+    argv by hand, and an argparse-only reading would miss precisely the flags most likely to ship
+    undocumented. Lines invoking another program are skipped, because their flags are not ours.
+    """
     src = (SCRIPTS / engine_filename).read_text(encoding="utf-8")
-    return set(re.findall(r"""["'](--[a-z0-9][a-z0-9-]*)["']""", src)) - IGNORE_FLAGS
+    flags = set()
+    for line in src.splitlines():
+        if _SUBPROCESS_LINE.search(line):
+            continue
+        flags.update(re.findall(r"""["'](--[a-z0-9][a-z0-9-]*)["']""", line))
+    return flags - IGNORE_FLAGS
 
 
 def _wiki():

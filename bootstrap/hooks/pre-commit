@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Tracked pre-commit gate: a staged-changes secret scan.
+#
+# This lives in the tree and is reached through core.hooksPath, NOT in .git/hooks. A control placed
+# in .git/hooks exists for exactly one person: it does not clone, and nothing reports its absence
+# on any other machine, because the ruleset sits right there in the tree looking convincing.
+#
+# It was restored here after `hooks-audit` found the original in .git/hooks, shadowed by a
+# core.hooksPath set later. Once hooksPath is set git stops reading .git/hooks entirely, so that
+# copy had been executable, plausible and dead for as long as the config had been there.
+set -euo pipefail
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  # Say so rather than passing quietly. A scanner that is not installed and does not mention it is
+  # indistinguishable from a scan that found nothing, which is the failure this project is about.
+  echo "pre-commit: gitleaks is not installed, so staged changes were NOT scanned locally." >&2
+  echo "  CI still runs the scan, so this is a lost fast-fail rather than a hole." >&2
+  echo "  Install it to restore the local gate: https://github.com/gitleaks/gitleaks" >&2
+  exit 0
+fi
+
+if ! gitleaks protect --staged --redact; then
+  echo "pre-commit: gitleaks found a secret in the staged changes. Commit blocked." >&2
+  echo "  Remove the secret rather than bypassing: --no-verify leaves it in the history." >&2
+  exit 1
+fi
