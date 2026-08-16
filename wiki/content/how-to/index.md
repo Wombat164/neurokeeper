@@ -143,6 +143,65 @@ already exists, and get the evidence for that answer. Read-only.
 
 ---
 
+## Adopt on an existing collection
+
+Adoption on a clean collection is easy and nobody has one. On a real collection, years old, the
+first run reports a number that looks like a verdict on you. Measured on a generated 120-note
+collection with realistic decay: **257 findings**, none of which the person running it caused.
+
+The reflex at that point is to close the terminal, and the tool has lost a user over its own
+honesty. This is the sequence that avoids that.
+
+**1. Run it once, and expect a large number.**
+
+```sh
+neurokeeper ref-audit --check
+# ref-audit OK: 0 broken canvas/base refs (120 notes; 28 unresolved links, orphans 97, dead-ends 75)
+```
+
+Read it as an inventory of inherited debt, not as a to-do list. Nothing here needs fixing today.
+
+**2. Baseline it.** Everything that exists right now becomes the accepted starting point.
+
+```sh
+neurokeeper ref-audit --write-baseline .nk-baseline.json
+# ref-audit: wrote 255 accepted findings to baseline
+```
+
+Commit that file. It is a record of what the collection looked like on the day you adopted the tool,
+and it is the thing that makes the next step quiet.
+
+**3. Gate on net-new only.** From here the check reports what you introduce, and says nothing about
+the backlog.
+
+```sh
+neurokeeper ref-audit --baseline .nk-baseline.json --check
+#     adoption: 2 new, 255 baselined, 0 resolved
+```
+
+That line is the whole posture: the past is not billed to you, and the present cannot get worse. Use
+`--staged` instead of, or with, the baseline if you want the same behaviour scoped to the commit in
+hand rather than to a file.
+
+**4. Clear the backlog opportunistically.** Fix what you touch, when you touch it. Nothing forces a
+bulk cleanup, and a bulk cleanup is usually the wrong shape anyway: hundreds of small edits in one
+commit are unreviewable.
+
+**5. Re-baseline occasionally and watch it shrink.**
+
+```sh
+neurokeeper ref-audit --baseline .nk-baseline.json
+#     adoption: 0 new, 255 baselined, 12 resolved
+```
+
+`12 resolved` means twelve baselined findings no longer exist. Rewrite the baseline to bank that
+progress, and the accepted count drops. The number going down is the only progress metric here that
+is not self-reported.
+
+**A note on what the baseline is not.** It is not a suppression file and not a permanent exemption.
+Everything in it stays visible in an unscoped run, which is deliberate: a scoped report that hid the
+backlog entirely would read as a clean collection and ambush the next person.
+
 ## Audit vault references
 
 **Goal:** find broken links, orphans, dead-ends, broken `.canvas`/`.base` references, and orphan media.
@@ -217,7 +276,7 @@ existing markdown ecosystem instead of duplicating it.
    ```yaml
    repos:
      - repo: https://github.com/Wombat164/neurokeeper
-       rev: v0.6.0
+       rev: v0.7.0
        hooks: [{ id: neurokeeper-doctor }]   # or: neurokeeper-ref-audit
    ```
    pre-commit installs the package in an isolated venv and runs the CLI against the repo root.
@@ -227,7 +286,7 @@ existing markdown ecosystem instead of duplicating it.
    - uses: actions/checkout@v4
    - uses: DavidAnson/markdownlint-cli2-action@v16    # markdown style (not neurokeeper's job)
    - uses: lycheeverse/lychee-action@v2               # external link existence (not neurokeeper's job)
-   - uses: Wombat164/neurokeeper@v0.6.0            # broken wikilinks/.canvas/.base, orphans, health
+   - uses: Wombat164/neurokeeper@v0.7.0            # broken wikilinks/.canvas/.base, orphans, health
      with: { vault-path: ".", engine: "doctor", strict: "false" }
    ```
 3. Understand what fails it. The exit code follows the doctor contract: broken `.canvas`/`.base` refs or an

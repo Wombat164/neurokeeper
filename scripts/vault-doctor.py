@@ -66,6 +66,17 @@ def _version():
     return "unknown"
 
 
+def _substrate_summary(root):
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from _substrate import probe
+        d = probe(root)
+        return {"metadata_reliable": d["metadata_reliable"], "sync_marker": d["sync_marker"],
+                "placeholders": d["placeholders"], "note": d["note"]}
+    except Exception as e:
+        return {"metadata_reliable": None, "note": f"substrate probe unavailable: {e}"}
+
+
 def main():
     args = sys.argv[1:]
     as_json, check, strict = "--json" in args, "--check" in args, "--strict" in args
@@ -130,12 +141,17 @@ def main():
         })
 
     # Run-receipt: what this run actually did, so a wrong root / 0-file scan is loud, not silently green.
+    scanned_root = os.path.abspath(os.path.expanduser(os.environ.get("VAULT_ROOT") or "."))
     receipt = {
         "tool": "neurokeeper", "version": _version(),
-        "root": os.path.abspath(os.path.expanduser(os.environ.get("VAULT_ROOT") or ".")),
+        "root": scanned_root,
         "files_scanned": scan_count,
         "engines_run": [r["engine"] for r in results if r["state"] != "skipped"],
         "duration_ms": round((time.perf_counter() - t0) * 1000),
+        # Name the substrate once per run. The receipt already proves WHICH root was scanned and how
+        # many files; this is the other half, whether the filesystem's answers about those files can
+        # be trusted at all.
+        "substrate": _substrate_summary(scanned_root),
     }
     roll = {"receipt": receipt, "failed": failed, "engines": results}
 

@@ -148,18 +148,29 @@ HEAD on a declared remote, and is this the canonical working copy.
 
 ---
 
+## P9. A structural change breaks things that never mention it
+
+Renaming or moving a repository silently breaks every worktree attached to it: the pointer names the
+old path, and the failure surfaces only the next time someone touches that directory. Nothing warns
+at rename time, and the repair command exists but is easy not to know about.
+
+The general form is broader than worktrees. Symlinks and junctions, editable installs, scheduled
+jobs, cached absolute paths in state files and hook configuration all hold a location that a move
+invalidates without complaint.
+
+It carries an extra turn beyond P1. A scan rooted at a stale path reports zero findings and zero
+findings reads as clean, and a rollback copy usually still exists at the old location, so the tool
+does not merely succeed: it succeeds against real, stale content.
+
+**Enforced by:** `path-audit`, which reports broken and stale worktrees, editable installs naming a
+path that is gone, dangling links, and a `core.hooksPath` pointing at nothing. It carries the repair
+command with each finding, because a check that names a fault without its remedy gets silenced as
+surely as one that fires too often.
+
+---
+
 ## Open items: principles with no check yet
 
 Listed here rather than above, because an unenforced principle is a task, not guidance.
 
-### O1. A structural change can break things that never mention it
-
-Renaming a repository silently breaks every worktree attached to it: the worktree's pointer names
-the old path, and the failure surfaces only the next time someone touches that directory, as
-`fatal: not a git repository`. Nothing warns at rename time, and the repair command exists but is
-easy not to know about.
-
-The general form is broader than worktrees: symlinks, junctions, editable installs, cached absolute
-paths in tooling, and scheduled jobs all hold a path that a rename invalidates without complaint.
-
-**No check yet.** A candidate is a repair-and-report pass over known path-holders after a move.
+*(none open. O1 graduated to P9 on 2026-08-16.)*

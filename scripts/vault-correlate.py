@@ -40,7 +40,10 @@ Design notes worth keeping in mind when editing:
   the same, which is the classic failure of this kind of matcher.
 * The vault is read through a small frontmatter MAP so the engine works on any markdown vault. It has
   no knowledge of specific folder names, keys or codes: those come from --config or the defaults.
-* Index is cached and keyed on (relpath, mtime, size), so a re-run only reparses changed notes.
+* Index is cached. The key is (mtime, size) on an ordinary disk, and a CONTENT HASH where the
+  substrate probe says metadata cannot be trusted: on a synced mount those two values are the
+  sync client's answers, so an edited note can keep its old signature and the cache serves a
+  stale card with no error anywhere.
 """
 import argparse
 import json
@@ -63,7 +66,7 @@ W_TAG = 10           # a shared tag
 MIN_ANCHOR_SIGNAL = 30   # no signal weaker than this may anchor by itself
 ANCHORED, CORRELATED, AMBIGUOUS_GAP = 70, 40, 15
 
-CACHE_VERSION = 2
+CACHE_VERSION = 3   # 3: signature depends on substrate trust, so v2 entries are not comparable
 
 DEFAULT_FM_MAP = {
     "title": ["title"],
@@ -233,7 +236,19 @@ class VaultIndex:
 
 
 def load_index(vault, include, fm_map, cache_path, refresh=False):
-    """Build (or incrementally refresh) the index. Cache keyed on relpath -> (mtime, size)."""
+    """Build (or incrementally refresh) the index.
+
+    The cache key is normally (mtime, size), which is cheap and correct on an ordinary disk. On a
+    synced mount it is neither: size and mtime are the sync client's answers rather than the
+    author's, so an edited note can keep its old signature and the cache serves a stale card
+    forever, with plausible output and no error anywhere.
+
+    So the substrate decides the key. Where metadata cannot be trusted the signature is a content
+    hash, which costs a read per file and is the only thing that stays true.
+    """
+    from _substrate import content_signature, probe          # noqa: E402
+    substrate = probe(vault)
+    trust_metadata = substrate["metadata_reliable"]
     cache = {}
     if cache_path and os.path.exists(cache_path) and not refresh:
         try:
@@ -252,7 +267,8 @@ def load_index(vault, include, fm_map, cache_path, refresh=False):
             st = os.stat(path)
         except OSError:
             continue
-        sig = [int(st.st_mtime), st.st_size]
+        sig = ([int(st.st_mtime), st.st_size] if trust_metadata
+               else [content_signature(path)])
         hit = cache.get(rel)
         if hit and hit.get("sig") == sig:
             cards.append(NoteCard(hit["card"]))
@@ -277,7 +293,7 @@ def load_index(vault, include, fm_map, cache_path, refresh=False):
     return VaultIndex(cards), {"notes": len(cards), "parsed": fresh, "cached": reused}
 
 
-def correlate(item, idx, top=3):
+def correlate(item, idx, top=3, register=None):
     """Score every plausible note for one item. Returns the verdict dict."""
     scores = defaultdict(int)
     evidence = defaultdict(list)
@@ -298,6 +314,25 @@ def correlate(item, idx, top=3):
     for code in item_codes:
         for nid in idx.code2notes.get(code, ()):
             add(nid, W_CODE, f"code {code}")
+
+    # 1b. Inherited codes (issue #21). Treating identifiers as flat tokens loses most of the signal
+    # in a real collection: an item names the specific thing, and notes are written at the level
+    # people think at. An item about `2026-AG-4` reaches notes declaring `ALPHA-REQ` or `ALPHA`
+    # only by accidental title overlap, if at all, though nothing about the relationship is
+    # ambiguous to a human.
+    #
+    # Scored BELOW a direct hit and decaying with distance, because inheritance is weaker evidence:
+    # the parent is genuinely about the child, and it is also about that child's siblings. Merging
+    # the two weights would let a vehicle-level note outrank the note actually about the agreement.
+    if register is not None:
+        for code in item_codes:
+            ident, _ = register.resolve(code)
+            if not ident:
+                continue
+            for depth, parent in enumerate(register.parents(ident), start=1):
+                weight = max(1, int(W_CODE / (2 ** depth)))
+                for nid in idx.code2notes.get(parent.upper(), ()):
+                    add(nid, weight, f"code {code} inherits {parent} (parent, depth {depth})")
 
     # 2. A note's title or alias appearing verbatim in the item.
     for phrase, nids in idx.phrase2notes.items():
@@ -492,7 +527,20 @@ def main(argv=None):
         sys.exit(f"vault-correlate: input is not valid JSON: {exc}")
     items = payload if isinstance(payload, list) else [payload]
 
-    results = [correlate(it, idx, top=args.top) for it in items if isinstance(it, dict)]
+    # The register is optional: without IDENTIFIER_REGISTER correlate behaves exactly as before.
+    # A register that IS named and cannot be read is an error rather than a silent absence, because
+    # scoring without it would quietly lose the inheritance signal and still look like a clean run.
+    register = None
+    if os.environ.get("IDENTIFIER_REGISTER"):
+        try:
+            from _register import load as _load_register
+            register = _load_register()
+        except Exception as e:
+            sys.stderr.write(f"correlate: IDENTIFIER_REGISTER set but unusable: {e}\n")
+            sys.exit(2)
+
+    results = [correlate(it, idx, top=args.top, register=register)
+               for it in items if isinstance(it, dict)]
     json.dump({"vault": args.vault, "index": stats, "items": results},
               sys.stdout, ensure_ascii=False, indent=1)
     print()

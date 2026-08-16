@@ -144,6 +144,13 @@ Mutating capabilities must audit, and the *substrate decides the trail*:
 Read-only capabilities need no audit. Forcing content mutations into the chained log (or memory
 mutations into bare git) is a category error.
 
+## Evidence and enforcement
+
+Every engine here is shaped by one invariant: **no verdict stronger than its evidence; no
+enforcement stronger than its mandate.** The anchor floor, the distinct `weak` state, never
+enforcing an inferred entry, diff-aware scoping and fail-closed egress are not five features but one
+idea applied in five places. See [Evidence and enforcement](evidence-and-enforcement).
+
 ## See also
 
 - Do it: [How-to guides](../how-to/) / Learn it: [[tutorials/index|Getting started]] / Look it up:

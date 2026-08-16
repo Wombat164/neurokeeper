@@ -29,6 +29,9 @@ ENGINES = {
     "selftest":           "selftest.py",
     "hooks-audit":        "hooks-audit.py",
     "custody-audit":      "custody-audit.py",
+    "register-lint":      "register-lint.py",
+    "path-audit":         "path-audit.py",
+    "denylist-audit":     "denylist-audit.py",
 }
 
 
