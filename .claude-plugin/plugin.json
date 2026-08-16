@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "neurokeeper",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Knowledge, kept kempt. Portable-core Claude Code harness: deterministic engines + prompt templates + thin adapters (skill/MCP/CLI). Engines are harness-agnostic; the Claude Code plugin is one adapter.",
   "author": {
     "name": "neurokeeper contributors"

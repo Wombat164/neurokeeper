@@ -64,6 +64,14 @@ tags:
 - **Env:** `VAULT_ROOT`, `VAULT_SCAN_EXCLUDE`. **Details:** `docs/engine-vault-correlate.md`.
 
 ### `ref-audit`
+- **Enforcement scoping (since 2026-08-16):** `--since <ref>`, `--baseline <file>` and `--staged`
+  are one family. `--staged` scopes findings to the git INDEX: what this commit would introduce.
+  Applying a new rule to a mature collection otherwise produces hundreds of day-one findings, a
+  reader stops at the third stale one, and the check gets switched off.
+- **Out-of-scope findings are COUNTED, never discarded.** The report carries
+  `pre_existing_out_of_scope` and the human output names it, because a scoped run that prints
+  nothing reads as a clean collection and ambushes whoever runs unscoped later. `doctor` accepts
+  and forwards `--staged` too.
 - **compute x effect:** deterministic x read-only
 - **What it does:** audits reference integrity across the vault - unresolved links, orphans (no inbound),
   dead-ends (no outbound), broken `.canvas` and `.base` file references, orphan media (attachments
@@ -168,6 +176,53 @@ tags:
 - **Audit:** git. **Forbidden-zones:** rename-protected via `VAULT_NORENAME_ZONES`; optional
   `VAULT_FORBIDDEN_ZONES` skip (never writes those files).
 - **Env:** `VAULT_ROOT`, `VAULT_NORENAME_ZONES`, `VAULT_FORBIDDEN_ZONES`.
+
+### `custody-audit`
+- **compute x effect:** deterministic x read-only.
+- **What it does:** asks whether the substrate is actually KEPT. Every other engine validates
+  content and passes whether or not that content has ever been committed, pushed or backed up.
+- **Four questions, and nothing more:** is each declared artifact tracked, or deliberately ignored
+  with a stated disposition (untracked-and-unignored is the silent gap); where the disposition is
+  ignored-with-an-example, is there a CURRENT and COMMITTED encrypted counterpart; is `HEAD` on a
+  declared remote; and is this the canonical working copy.
+- **Why the counterpart question matters most:** "sensitive file gitignored, sanitised example
+  committed beside it" is correct practice that nothing enforces, and the example next to the gap
+  is exactly what makes a missing counterpart invisible. A counterpart older than the file it backs
+  up, or present but uncommitted, is reported too: neither is a backup.
+- **Receipts, never process introspection:** scheduled work declares a receipt file and this engine
+  checks its freshness. It never inspects systemd, cron or Task Scheduler: three platforms, three
+  failure modes, no determinism. It also avoids the trap of a job reporting failed every night while
+  the half that mattered succeeded, since a permanently red signal is indistinguishable from a real
+  one.
+- **Config:** `CUSTODY_MANIFEST` points at JSON with `artifacts[]` (each with `path` and a
+  `disposition` of `tracked`, `ignored-ephemeral` or `ignored-encrypted`), plus optional `remotes`,
+  `canonical_root` and `receipts[]`. An ABSENT `remotes` means assume `origin`; an explicitly EMPTY
+  one means no remote is declared and the question is not asked.
+- **Flags:** `--root <path>` audits another collection, `--check` for the gate, `--json` for a
+  machine consumer.
+- **Exit codes:** `0` kept, `1` findings, `2` no manifest configured, `3` manifest named and
+  unreadable.
+
+### `hooks-audit`
+- **compute x effect:** deterministic x read-only.
+- **What it does:** finds gates that look installed and do not run.
+- **Why:** a control that lives in `.git/` does not exist for anyone who clones. `.git/hooks` is
+  machine-local by design, so a gate placed there is a gate exactly one person has, and nothing
+  reports its absence elsewhere because the ruleset sits in the tree looking convincing.
+- **The quiet case:** once `core.hooksPath` is set, git stops reading `.git/hooks` ENTIRELY. Any
+  hook still there is executable, plausible and dead. This engine found exactly that in its own
+  repository: a staged-changes secret scan, shadowed by a `hooksPath` set later, not running on any
+  commit since.
+- **Findings:** `untracked-gate` (exists on this machine only), `shadowed` (cannot run because
+  hooksPath points elsewhere, and reports whether a live equivalent exists), `not-wired` (the repo
+  ships hooks and git was never told), `hookspath-missing` (points at a directory that is not
+  there, so nothing runs at all).
+- **Flags:** `--root <path>` audits another repository, `--check` for the gate, `--json` for a
+  machine consumer.
+- **Exit codes:** `0` every gate present here is one a clone would also get, `1` findings, `2` not a
+  git repository. Exit 2 is not success: nothing was audited.
+- **Note on executability:** a hook is identified by NAME, not by the POSIX execute bit. Git runs
+  hooks on Windows regardless of that bit, so testing it there reports a working gate as missing.
 
 ### `selftest`
 - **compute x effect:** deterministic x read-only.

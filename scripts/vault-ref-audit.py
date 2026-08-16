@@ -30,7 +30,7 @@ Unresolved wikilinks are reported but are INFORMATIONAL by default: in Obsidian 
 not-yet-created note is a legitimate forward-reference, so they do not fail `--check` unless `--strict`.
 canvas / base broken refs are always real defects and fail `--check`.
 
-Usage: vault-ref-audit.py [--json] [--check] [--strict] [--since <git-ref>]
+Usage: vault-ref-audit.py [--json] [--check] [--strict] [--since <git-ref>] [--staged]
                           [--write-baseline <file> | --baseline <file>]
   --since <git-ref>       : report only findings for notes changed since <git-ref> (the scan stays
                             graph-global; only the surfaced findings and the --check gate are narrowed).
@@ -112,6 +112,43 @@ def _arg_value(args, flag):
         if i + 1 < len(args) and not args[i + 1].startswith("-"):
             return args[i + 1]
     return None
+
+
+def _staged_paths(vault):
+    """Vault-relative posix paths in the git INDEX: exactly what this commit would introduce.
+
+    The third member of the enforcement-scoping family, beside --since and --baseline. Applying a
+    new rule to a mature collection produces hundreds of findings on day one, a reader stops at the
+    third stale one, and the documented outcome is that the check gets switched off. Scoping to the
+    change in hand is what makes a rule adoptable at all.
+
+    Exits 2 on a git error rather than scanning the wrong scope quietly: an empty result would read
+    as "nothing staged is broken".
+    """
+    import subprocess
+
+    def _git(*a):
+        return subprocess.run(["git", "-C", vault, *a], capture_output=True, text=True,
+                              encoding="utf-8", errors="replace")
+
+    top = _git("rev-parse", "--show-toplevel")
+    if top.returncode != 0:
+        sys.stderr.write(f"ref-audit --staged: '{vault}' is not inside a git repository.\n")
+        sys.exit(2)
+    root = top.stdout.strip()
+    diff = _git("diff", "--cached", "--name-only")
+    if diff.returncode != 0:
+        sys.stderr.write(f"ref-audit --staged: 'git diff --cached' failed: {diff.stderr.strip()}\n")
+        sys.exit(2)
+    out = set()
+    for line in diff.stdout.splitlines():
+        if not line.strip():
+            continue
+        abs_p = os.path.normpath(os.path.join(root, line.strip()))
+        rel = os.path.relpath(abs_p, vault).replace(os.sep, "/")
+        if not rel.startswith(".."):
+            out.add(rel)
+    return out
 
 
 def _changed_since(vault, ref):
@@ -214,6 +251,7 @@ def main():
     args = sys.argv[1:]
     as_json, check, strict = "--json" in args, "--check" in args, "--strict" in args
     since = _arg_value(args, "--since")
+    staged = "--staged" in args
     baseline_path = _arg_value(args, "--baseline")
     write_baseline = _arg_value(args, "--write-baseline")
     backend = get_backend()
@@ -368,18 +406,40 @@ def main():
     # (a renamed target breaks backlinks in unchanged files, so the whole graph must be built); only the
     # surfaced findings, and therefore the --check gate, are narrowed to the diff. Ideal for pre-commit / CI.
     scope = None
-    if since:
-        changed = _changed_since(VAULT, since)
-        broken_links = [x for x in broken_links if x["note"] in changed]
-        broken_canvas = [x for x in broken_canvas if x["canvas"] in changed]
-        broken_base = [x for x in broken_base if x["base"] in changed]
-        broken_anchors = [x for x in broken_anchors if x["note"] in changed]
-        orphans = [p for p in orphans if p in changed]
-        dead_ends = [p for p in dead_ends if p in changed]
-        isolated = [p for p in isolated if p in changed]
-        orphan_media = [p for p in orphan_media if p in changed]
-        stem_collisions = [c for c in stem_collisions if any(p in changed for p in c["paths"])]
-        scope = {"since": since, "changed_paths": len(changed), "scanned_notes": len(notes)}
+    if since or staged:
+        if staged:
+            changed = _staged_paths(VAULT)
+            selector = {"staged": True}
+        else:
+            changed = _changed_since(VAULT, since)
+            selector = {"since": since}
+
+        def _keep(items, key):
+            """Split into in-scope and out-of-scope rather than discarding the remainder.
+
+            The out-of-scope findings are pre-existing debt. Dropping them silently makes a scoped
+            run look like a clean collection, and a reader who later runs unscoped is ambushed by a
+            backlog nobody mentioned. They are counted and reported instead: visible, not billed to
+            whoever happened to touch a neighbouring file.
+            """
+            keep = [x for x in items if key(x) in changed]
+            return keep, len(items) - len(keep)
+
+        out = 0
+        broken_links, n = _keep(broken_links, lambda x: x["note"]);        out += n
+        broken_canvas, n = _keep(broken_canvas, lambda x: x["canvas"]);    out += n
+        broken_base, n = _keep(broken_base, lambda x: x["base"]);          out += n
+        broken_anchors, n = _keep(broken_anchors, lambda x: x["note"]);    out += n
+        orphans, n = _keep(orphans, lambda p: p);                          out += n
+        dead_ends, n = _keep(dead_ends, lambda p: p);                      out += n
+        isolated, n = _keep(isolated, lambda p: p);                        out += n
+        orphan_media, n = _keep(orphan_media, lambda p: p);                out += n
+        kept_sc = [c for c in stem_collisions if any(p in changed for p in c["paths"])]
+        out += len(stem_collisions) - len(kept_sc)
+        stem_collisions = kept_sc
+
+        scope = dict(selector, changed_paths=len(changed), scanned_notes=len(notes),
+                     pre_existing_out_of_scope=out)
 
     # --baseline: drop findings already accepted in the baseline file, so only NET-NEW debt is reported
     # (and gates --check). A finding fixed since the baseline was written is counted as "resolved".
@@ -438,8 +498,14 @@ def main():
 
     print(f"=== VAULT REF AUDIT ({len(notes)} notes, {len(all_files)} files) ===")
     if scope:
-        print(f"    scope: findings for {scope['changed_paths']} path(s) changed since {scope['since']} "
+        what = "staged for commit" if scope.get("staged") else f"changed since {scope.get('since')}"
+        print(f"    scope: findings for {scope['changed_paths']} path(s) {what} "
               f"(full graph scanned over {scope['scanned_notes']} notes)")
+        # Say what was set aside. A scoped run that prints only its own findings reads as a clean
+        # collection, and whoever runs unscoped later is ambushed by a backlog nobody mentioned.
+        if scope.get("pre_existing_out_of_scope"):
+            print(f"    {scope['pre_existing_out_of_scope']} pre-existing finding(s) outside this "
+                  f"scope, not caused by this change and not gating it")
     if baseline_info:
         b = baseline_info
         nag = f", {b['resolved']} now resolved (rewrite --write-baseline to shrink)" if b["resolved"] else ""

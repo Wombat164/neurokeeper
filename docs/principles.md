@@ -111,6 +111,43 @@ is installed.
 
 ---
 
+## P7. A control that lives in `.git/` does not exist for anyone who clones
+
+`.git/hooks` is machine-local by design, so a gate placed there is a gate exactly one person has.
+Nothing reports its absence elsewhere, because the ruleset is in the tree, tracked and visible,
+which is what makes the arrangement convincing.
+
+There is a quieter second shape. Once `core.hooksPath` is set, git stops reading `.git/hooks`
+entirely, so a hook still sitting there is executable, plausible and dead. Found in this repository
+while the check was being written: a staged-changes secret scan in `.git/hooks/pre-commit`,
+shadowed by a `core.hooksPath` set later, silently not running on any commit since.
+
+**Enforced by:** `hooks-audit`, which reports gates that are untracked, shadowed by `hooksPath`,
+shipped but not wired, or pointed at a directory that does not exist.
+
+---
+
+## P8. Content validity says nothing about custody
+
+Every check that inspects content passes happily whether or not that content has ever been
+committed, pushed or backed up. Durability is a separate question and its failures are invisible by
+construction: nothing is wrong with the work, it simply exists in one place.
+
+The subtlest instance is a good pattern nothing enforces. "Sensitive file gitignored, sanitised
+example committed beside it" is correct practice, and the example sitting next to the gap is exactly
+what makes a missing encrypted counterpart invisible.
+
+Scheduled work is checked by RECEIPT, never by introspecting the scheduler: three platforms, three
+failure modes, no determinism. That also avoids a specific trap, a job reporting failed every night
+while the half that mattered succeeded throughout, because a permanently red signal is
+indistinguishable from a real one.
+
+**Enforced by:** `custody-audit`, which asks four questions and nothing more: is it tracked or
+deliberately ignored with a stated disposition, is the encrypted counterpart present and current, is
+HEAD on a declared remote, and is this the canonical working copy.
+
+---
+
 ## Open items: principles with no check yet
 
 Listed here rather than above, because an unenforced principle is a task, not guidance.

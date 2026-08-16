@@ -45,7 +45,7 @@ harness-agnostic **engines** (deterministic scripts) + **prompt templates** + **
 a thin **adapter** binds them to a specific runtime. The Claude Code plugin is *one* adapter: the same
 core works from an MCP server, a plain CLI, or any other LLM harness.
 
-> Status: **0.5.0 (alpha).** Licensed **MIT** (see [`LICENSE`](LICENSE)).
+> Status: **0.6.0 (alpha).** Licensed **MIT** (see [`LICENSE`](LICENSE)).
 
 ## Why
 "Skills" (and plugins, hooks) are runtime-specific and not portable. Putting the real logic in **engines
@@ -117,6 +117,10 @@ default, mutating only with `--apply` behind the Obsidian-running guard; git is 
 - `vault-set-note-type.py` - additive `note_type` from a folder-derive map
 - `vault-tag-reconcile.py` - detect morphological tag-merge groups (apply via Tag Wrangler)
 - `vault-name-reconcile.py` - de-dash + kebab filenames, link-aware rename
+- `selftest.py` - negative control for the detectors: each engine must find every defect planted in its own known-bad fixture, and must NOT fire on the clean notes beside them (read-only)
+- `hooks-audit.py` - finds gates that look installed and do not run: untracked, shadowed by `core.hooksPath`, shipped but unwired, or pointed at a directory that is not there (read-only)
+- `custody-audit.py` - durability rather than content: is each declared artifact tracked or deliberately ignored, is the encrypted counterpart current and committed, is `HEAD` on a remote, is this the canonical working copy (read-only)
+- `vendor-audit.py` - reports when an upstream file MOVES under a copy kept vendored on purpose, never that the two differ (read-only)
 - `_vault_lib.py` - shared core (walk / frontmatter / folder-suffix / kebab); `_vault_guard.py` - Obsidian-running guard
 
 Schema-as-code lives in your config; `config.example/frontmatter-schema.example.yaml` is a worked example.
@@ -129,12 +133,12 @@ The same engines run as a commit/CI gate. neurokeeper ships a `.pre-commit-hooks
 # .pre-commit-config.yaml (in your vault repo)
 repos:
   - repo: https://github.com/Wombat164/neurokeeper
-    rev: v0.5.0
+    rev: v0.6.0
     hooks: [{ id: neurokeeper-doctor }]
 ```
 ```yaml
 # a GitHub workflow step
-- uses: Wombat164/neurokeeper@v0.5.0
+- uses: Wombat164/neurokeeper@v0.6.0
   with: { vault-path: ".", engine: "doctor", strict: "false" }
 ```
 Exit semantics follow [ADR-0002](docs/adr-0002-doctor-exit-semantics.md) (fails on broken `.canvas`/`.base`

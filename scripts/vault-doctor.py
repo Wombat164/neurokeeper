@@ -69,6 +69,7 @@ def _version():
 def main():
     args = sys.argv[1:]
     as_json, check, strict = "--json" in args, "--check" in args, "--strict" in args
+    staged = "--staged" in args
     since = None
     if "--since" in args:
         i = args.index("--since")
@@ -87,7 +88,7 @@ def main():
     plan = [
         ("taxonomy-inventory", "vault-taxonomy-inventory.py", ["--json"], False, True),
         ("ref-audit", "vault-ref-audit.py", ["--check", "--json"] + (["--strict"] if strict else [])
-         + (["--since", since] if since else []), True, True),
+         + (["--since", since] if since else []) + (["--staged"] if staged else []), True, True),
         ("frontmatter-lint", "vault-frontmatter-lint.py", ["--check", "--json"], False, has_schema),
         ("memory-consolidate", "memory-consolidate.py", ["--check"], True, has_mem),
     ]

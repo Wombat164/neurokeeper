@@ -14,6 +14,18 @@ pytest -q                  # the full suite
 ruff check scripts/ tests/ neurokeeper/
 ```
 
+Wire the shipped gates once, so they actually run for you:
+
+```sh
+git config core.hooksPath bootstrap/hooks   # tracked pre-commit secret scan
+neurokeeper hooks-audit --check             # confirms it, and finds gates that only look installed
+```
+
+This repo ships its hooks in the tree rather than writing into `.git/hooks`, because a control that
+lives in `.git/` does not exist for anyone who clones. Git does not clone configuration either, so
+the one-line wiring above is the step that turns a shipped gate into a running one. `hooks-audit`
+reports it as `not-wired` until you do.
+
 `pip install -e .` is the supported install mode: the `neurokeeper` dispatcher resolves the engines by
 repo-relative path, so an editable install is what wires `neurokeeper <engine>` correctly. Run
 `neurokeeper --list` to see the engines.
