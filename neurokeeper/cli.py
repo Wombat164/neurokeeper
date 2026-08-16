@@ -13,6 +13,8 @@ import runpy
 import sys
 
 ENGINES = {
+    # First, because it is the answer to "I just installed this, now what".
+    "init":               "init.py",
     "name-reconcile":     "vault-name-reconcile.py",
     "tag-reconcile":      "vault-tag-reconcile.py",
     "frontmatter-lint":   "vault-frontmatter-lint.py",
@@ -21,6 +23,9 @@ ENGINES = {
     "taxonomy-inventory": "vault-taxonomy-inventory.py",
     "ref-audit":          "vault-ref-audit.py",
     "correlate":          "vault-correlate.py",
+    # Advisory and deliberately outside the doctor composition: it produces a candidate list for a
+    # person to judge, and a suggestion engine inside a health gate would get the gate switched off.
+    "semantic-gaps":      "vault-semantic-gaps.py",
     # Not part of the doctor composition either: doctor reports on vault health, this reports
     # on what a push or a paste would disclose. Different question, different failure mode.
     "egress-gate":        "egress-gate.py",

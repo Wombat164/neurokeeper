@@ -6,6 +6,70 @@ Full per-release notes: https://github.com/Wombat164/neurokeeper/releases
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-08-16
+
+Three engines that answer questions the tool could not answer before: how do I start, what stops a new contradiction entering, and what should link to what.
+
+### Added
+- **`init`** (closes #38): configure the tool for a collection, and be checkable about it. Adoption
+  on an existing collection was documented; starting from nothing was not, and the result is worse
+  than it looks - every engine skips cleanly when unconfigured, which is correct, so a fresh
+  collection reports a clean bill of health while doing almost nothing. A newcomer cannot tell
+  "correctly minimal" from "silently doing nothing", which is the same confusion between absent and
+  empty that the exit contract fixes one layer down.
+  It states the note count it can see **before** writing anything, because a wizard that silently
+  scopes to the wrong root writes a config that reports clean forever and nobody can tell. That line
+  earned itself: an early version counted the working directory instead of the collection, and the
+  count is what made it visible.
+  `--schema derive` drafts a schema from the vocabulary already in use - few distinct values become
+  an enumerated axis, high-cardinality fields become open, since enumerating free text produces a
+  schema that fails on nearly every note. Always written `provenance: harvested`, and it says in the
+  file that it describes what the collection CONTAINS rather than what it should; promoting it
+  silently would make this tool's reading of a collection into that collection's law. There is
+  deliberately no `--register derive`, because identifiers are your canon and a tool that invents
+  them has decided what they mean.
+  It writes **config only** - no notes, no folders, no naming convention (ADR-0004) - prints every
+  file it wrote with the variables that config needs, and ends on a real `doctor --check` rather
+  than a claim of success.
+- **`register-lint --guard`: the author-time guard** (closes #22). The whole-collection report never
+  blocks, on purpose; this is the half that enforces, and it enforces only what your edit
+  introduced. Findings on lines the change touched are reported in full with their remedy and
+  block; findings elsewhere in the same document collapse to one count and do not. File-level
+  scoping was too coarse for this: edit one line of a document carrying five old findings and all
+  five would have been reported as yours, which is the documented way a linter gets switched off.
+  `--hook` blocks with exit 2 for a `PostToolUse` hook, and is opt-in because 2 is also this
+  engine's NOT-CONFIGURED code: a caller that cannot tell "blocked" from "no register configured"
+  is a coin-flip. Only enforceable findings block, per ADR-0005 - stopping someone's work over an
+  entry the tool merely inferred is how it loses the argument about whether it should exist.
+  `--staged` / `--since` bring the same enforcement-scoping family to the report, with out-of-scope
+  findings counted rather than discarded.
+- **`semantic-gaps`** (closes #17): which existing notes should link to the one you just wrote.
+  `ref-audit` asks whether every link resolves; this asks the question that actually costs a
+  collection its value, namely whether the note you just added is connected to the notes already
+  covering its subject. Structurally such a collection is perfect - every link resolves, nothing is
+  orphaned - and the knowledge is still in two halves.
+  It **reuses `correlate` rather than re-implementing it**. The obvious build, ranking by shared-term
+  count, ranks by how common a word is: the note sharing "project" and "meeting" with everything
+  outranks the one sharing a single rare identifier. A second scorer would also be a second set of
+  answers to one question, and on the day they disagree neither is trustworthy.
+  Already-linked notes are excluded in **both** directions, since the gap is symmetric and an engine
+  that keeps suggesting what you already did teaches you to stop reading it. It never writes a link:
+  a missing link is a gap someone may still find, a wrong one is an assertion the collection makes.
+  Always exits 0 and stays out of the `doctor` composition, because a suggestion engine that can
+  fail a health gate is one whose gate gets switched off.
+
+### Changed
+- **Enforcement scoping now has one implementation**, in `scripts/_scope.py`, used by both
+  `ref-audit` and `register-lint`. It lived inside `ref-audit`, and a second copy in the guard would
+  have been two engines answering "what changed" differently - which is how a pre-commit hook and
+  its own CI job come to disagree about the same commit.
+
+### Fixed
+- **An untracked file was silently exempt from line-level scoping.** `git diff` reports a brand-new
+  file as silence rather than as an error, so reading the empty result as "no lines changed" waved
+  through the whole of the document most likely to be wrong. Untracked now means "cannot narrow",
+  which is treated as every line in scope rather than none. Caught by its own test.
+
 ## [0.8.0] - 2026-08-16
 
 The release that stops the core from being the only place an engine can live.

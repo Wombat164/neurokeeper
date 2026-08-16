@@ -122,60 +122,22 @@ def _staged_paths(vault):
     third stale one, and the documented outcome is that the check gets switched off. Scoping to the
     change in hand is what makes a rule adoptable at all.
 
-    Exits 2 on a git error rather than scanning the wrong scope quietly: an empty result would read
-    as "nothing staged is broken".
+    The mechanics moved to _scope.py when register-lint needed the same family for its author-time
+    guard. Two engines answering "what changed" differently is how a pre-commit hook and its own CI
+    job come to disagree about one commit, so there is now one implementation and both call it.
     """
-    import subprocess
-
-    def _git(*a):
-        return subprocess.run(["git", "-C", vault, *a], capture_output=True, text=True,
-                              encoding="utf-8", errors="replace")
-
-    top = _git("rev-parse", "--show-toplevel")
-    if top.returncode != 0:
-        sys.stderr.write(f"ref-audit --staged: '{vault}' is not inside a git repository.\n")
-        sys.exit(2)
-    root = top.stdout.strip()
-    diff = _git("diff", "--cached", "--name-only")
-    if diff.returncode != 0:
-        sys.stderr.write(f"ref-audit --staged: 'git diff --cached' failed: {diff.stderr.strip()}\n")
-        sys.exit(2)
-    out = set()
-    for line in diff.stdout.splitlines():
-        if not line.strip():
-            continue
-        abs_p = os.path.normpath(os.path.join(root, line.strip()))
-        rel = os.path.relpath(abs_p, vault).replace(os.sep, "/")
-        if not rel.startswith(".."):
-            out.add(rel)
-    return out
+    from _scope import staged_paths
+    return staged_paths(vault, who="ref-audit --staged")
 
 
 def _changed_since(vault, ref):
-    """Set of vault-relative posix paths changed vs `ref` (git diff --name-only). Exits 2 on git error
-    rather than silently scanning the wrong scope. Includes staged + unstaged changes vs the ref."""
-    import subprocess
+    """Vault-relative posix paths changed vs `ref`, staged and unstaged alike.
 
-    def _git(*a):
-        return subprocess.run(["git", "-C", vault, *a], capture_output=True, text=True,
-                              encoding="utf-8", errors="replace")
-
-    top = _git("rev-parse", "--show-toplevel")
-    if top.returncode != 0:
-        sys.stderr.write(f"ref-audit --since: '{vault}' is not inside a git repository.\n")
-        sys.exit(2)
-    root = top.stdout.strip()
-    diff = _git("diff", "--name-only", ref)
-    if diff.returncode != 0:
-        sys.stderr.write(f"ref-audit --since: 'git diff {ref}' failed: {diff.stderr.strip()}\n")
-        sys.exit(2)
-    changed = set()
-    for line in diff.stdout.splitlines():
-        line = line.strip()
-        if line:
-            rel = os.path.relpath(os.path.join(root, line), vault).replace(os.sep, "/")
-            changed.add(rel)
-    return changed
+    Exits 2 on a git error rather than scanning the wrong scope quietly: an empty result would read
+    as "nothing here is broken", which is the most expensive wrong answer available.
+    """
+    from _scope import changed_since
+    return changed_since(vault, ref, who="ref-audit --since")
 
 
 def _finding_fp(kind, x):
