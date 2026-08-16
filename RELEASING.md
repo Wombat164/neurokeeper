@@ -6,6 +6,19 @@
 python scripts/check-release.py     # offline: versions synced + plugin/marketplace manifests valid
 claude plugin validate . --strict   # richer manifest + skill/agent/hook frontmatter check (see note)
 ```
+`check-release.py` also checks the version refs a READER copies (a pre-commit `rev:`, a workflow
+`uses:` ref, a status line) across `README.md`, `docs/` and `wiki/content/`, and fails on a stale
+one. This exists because the gate once reported "version synced" while seven such refs pointed two
+minor versions back: the manifests are read by tooling that fails loudly, the prose is read by
+people who copy it and get a silently old toolchain. Prose that merely MENTIONS a version ("fixed
+in 0.3.2") is not checked, changelog/ADR/roadmap files are skipped by name, and a single
+deliberate line can be exempted with `<!-- pin-ok -->`.
+
+Bump those refs in the same change as the version, and cut the tag before publishing: a ref pinned
+to a tag that does not exist yet resolves to nothing, which is a harder failure than an old
+release. `check-release.py` prints a NOTE when the docs pin a version with no tag, and does not
+fail on it, because bumping docs before tagging is the normal order.
+
 `check-release.py` runs in CI (`ci` -> `release manifests` job) on every push, so version drift or a
 malformed `plugin.json`/`marketplace.json` fails the build. `claude plugin validate --strict` is a
 **manual pre-publish step** (it may require a logged-in Claude CLI, so it is deliberately NOT in CI);

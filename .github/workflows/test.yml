@@ -37,6 +37,10 @@ jobs:
           python-version: ${{ matrix.py }}
       - run: pip install -r requirements-dev.txt
       - run: python -m pytest tests/ -q
+      # Negative control: every detector must find the defects planted in its own fixture, and
+      # must NOT fire on the clean notes beside them. A checker that has never been observed to
+      # fire is indistinguishable from one that cannot.
+      - run: python scripts/selftest.py
 
   # ---- lint ----
   lint:

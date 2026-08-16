@@ -76,7 +76,11 @@ def main():
             since = args[i + 1]
 
     mem = os.environ.get("CLAUDE_MEMORY_DIR", "")
-    has_mem = bool(mem) and os.path.isdir(os.path.expanduser(mem))
+    # Configured-but-wrong is NOT the same as not-configured. Testing isdir() here made a
+    # mistyped or moved store look like an unused feature: doctor skipped it, said 'required
+    # config not set', and rolled up OK. If a store was named at all, run the engine and let
+    # it speak (it exits 3 for a configured store it cannot reach).
+    has_mem = bool(mem)
     has_schema = bool(os.environ.get("FRONTMATTER_SCHEMA"))
 
     # name, engine file, args, gates(can fail roll-up), applicable
@@ -108,7 +112,12 @@ def main():
         if rc == 0:
             state = "ok"
         elif rc == 2:
-            state = "skipped"             # usage/config error (e.g. schema missing) -> not a health failure
+            state = "skipped"             # NOT CONFIGURED (e.g. schema absent) -> not a health failure
+        elif rc == 3:
+            # UNREACHABLE: the engine was configured and could not read its subject. Distinct from
+            # 2 on purpose: this one is a real defect, and skipping it is how a broken check stays
+            # invisible. Fails the roll-up whether or not the engine is a gate.
+            state = "error"; failed.append(name)
         elif gates and rc == 1:
             state = "fail"; failed.append(name)
         else:

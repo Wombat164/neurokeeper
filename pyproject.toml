@@ -13,7 +13,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "neurokeeper"
-version = "0.4.0"
+version = "0.5.0"
 description = "Knowledge, kept kempt. Portable-core harness for agentic coding/knowledge work: deterministic engines + prompt templates + thin adapters."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -43,6 +43,7 @@ packages = ["neurokeeper"]
 [tool.hatch.build.targets.wheel.force-include]
 "scripts" = "neurokeeper/_engines"
 "prompts" = "neurokeeper/_prompts"
+"selftest" = "neurokeeper/_selftest"
 
 [tool.ruff]
 line-length = 140

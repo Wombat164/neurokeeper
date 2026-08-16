@@ -6,10 +6,49 @@ Full per-release notes: https://github.com/Wombat164/neurokeeper/releases
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-16
+
 ### Added
+- **`selftest`**: a negative control for the detectors themselves. Each engine ships a known-bad
+  fixture and must find every defect planted in it, on demand, at the install site rather than only
+  in the maintainer's CI. A fixture asserts `must_detect` AND `must_not_detect`, because a detector
+  that reports everything also finds the planted defect. `--engine <name>` runs one fixture; exit 2
+  means no fixture matched, which is deliberately not success. Runs in CI on every push.
+- **`vendor-audit`**: reports when an upstream file MOVES underneath a copy you keep vendored on
+  purpose. It never reports that the two files differ, because they always differ; that is the point
+  of the copy. Reads a manifest at `VENDOR_MANIFEST` recording the upstream hash at reconciliation,
+  and requires each entry to state `why_resident`. `--adopt` records a new baseline after a human
+  reconciles. It deliberately does not auto-sync: pulling discards local config, pushing leaks
+  consumer specifics into the core.
+- **`docs/principles.md`**: the register these checks descend from, where every principle names the
+  check that enforces it and an unenforced principle is listed as an OPEN ITEM rather than guidance.
 - README quickstart GIF (install then `doctor`, showcasing the run-receipt) and an `example-vault`
   CI badge: a workflow runs `doctor --check` against the bundled `examples/vault/` on every push,
-  dogfooding the tool and proving a clean install.
+  dogfooding the tool and proving a clean install. The GIF is now a theme-aware SVG pair.
+
+### Changed
+- **Exit-code contract, and ADR-0002 amended to match.** `0` reached the subject (an empty subject
+  is still reached), `2` NOT CONFIGURED (still a `doctor` skip, because declining a check is
+  legitimate), `3` UNREACHABLE (configured and unreadable: an error that fails the roll-up).
+  Previously a missing memory store exited 0, so "the path is wrong" and "there is nothing here"
+  were the same signal, and `--terse` feeds a hook that stays silent on a zero exit.
+- **`doctor` decides applicability by presence, not resolution.** Testing whether a configured path
+  resolved meant a mistyped or moved store was reported as "required config not set", skipped, and
+  rolled up green. If a value was supplied at all, the engine now runs and speaks for itself.
+- **`memory-consolidate --candidates` requires a content signal.** A shared session identifier is a
+  tiebreaker, never sufficient alone: two notes share a session because they share a clock, not a
+  subject. On a 317-file store this moved output from 1846 pairs to 40, with the 1806 suppressed
+  reported in the payload rather than dropped silently.
+- **`check-release` reads the version references a human copies** (a pre-commit `rev:`, a workflow
+  `uses:` ref, a status line) across README, `docs/` and `wiki/content/`. Prose that merely mentions
+  a version is not a pin; changelog, ADR and roadmap files are skipped by name; a single line can be
+  exempted with `<!-- pin-ok -->`. A pin whose tag does not exist yet prints a NOTE rather than
+  failing, because bumping docs before tagging is the normal release order.
+- Brand: new mark and wordmark, a tagline, and theme-aware README imagery.
+
+### Fixed
+- `memory-consolidate` raised `KeyError` on a store that exists but has no index file. An empty
+  store is a legitimate new collection and now reports normally on exit 0.
 
 ## [0.3.5] - 2026-07-04
 

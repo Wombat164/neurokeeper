@@ -169,7 +169,69 @@ tags:
   `VAULT_FORBIDDEN_ZONES` skip (never writes those files).
 - **Env:** `VAULT_ROOT`, `VAULT_NORENAME_ZONES`, `VAULT_FORBIDDEN_ZONES`.
 
+### `selftest`
+- **compute x effect:** deterministic x read-only.
+- **What it does:** runs every engine against a KNOWN-BAD fixture and fails unless the engine finds
+  every defect planted in it. A negative control for the detectors themselves.
+- **Why:** checks rot. A refactor stops a pattern matching, an upgrade changes a default, a scan
+  quietly narrows, and every run afterwards reports fewer findings, which looks like improvement. A
+  detector that has never been observed to fire is indistinguishable from one that cannot. Unit
+  tests catch this in the maintainer's CI; `selftest` travels to the install site, where the config,
+  the platform and the collection are all different.
+- **Both halves are required:** a fixture asserts `must_detect` AND `must_not_detect`. A detector
+  that reports everything also finds the planted defect, so the clean notes in each fixture are
+  load-bearing rather than padding.
+- **Fixture shape:** `selftest/<engine>/vault/` plus `expected.json` naming the engine, its args,
+  the env it needs, and the two assertion lists. Each assertion carries a `why` in plain words, so a
+  failure says what stopped being detected rather than printing a diff.
+- **Exit codes:** `0` every detector alive, `1` a detector missed a planted defect or fired on a
+  clean one, `2` no fixture matched. Exit 2 is deliberately not success: nothing was proven, which
+  is not the same as everything passing.
+- **Flags:** `--engine <name>` runs a single fixture rather than all of them, `--json` emits
+  per-check results for a machine consumer.
+- **Prior art:** the EICAR test file for antivirus, mutation testing for test suites, restore
+  verification for backups. All the same move: prove the detector detects.
+
+### `vendor-audit`
+- **compute x effect:** deterministic x read-only (`--adopt` writes only the manifest).
+- **What it does:** notices when an UPSTREAM file has moved underneath a copy you keep vendored on
+  purpose. The de-dup pattern shims most engines so an upstream fix arrives automatically, but some
+  files cannot be shimmed for good reasons: they are called from outside your tree, by a gate in
+  another repository, on machines where this project is not cloned, and a shim exits when the engine
+  is absent. Those stay resident copies, and "kept in sync by hand" is not a control. One such copy
+  drifted to 311 lines against upstream's 416, missing a flag and four functions, unnoticed, because
+  a stale analyzer reports cheerfully.
+- **What it does NOT do:** it never reports that the two files DIFFER. They always differ, by
+  design. It reports only that upstream CHANGED since the copy was last reconciled. A check that
+  fires constantly is one nobody reads, which is how the original drift survived.
+- **Why it does not auto-sync:** pulling upstream over a resident copy discards local config;
+  pushing the other way leaks consumer specifics into a portable core. Neither is safe to automate.
+  The machine notices, a human reconciles, `--adopt` records the new baseline.
+- **Config:** `VENDOR_MANIFEST` points at a JSON file with an `entries[]` list, each carrying
+  `local`, `upstream`, `upstream_sha256`, `reconciled`, and a required `why_resident`: a vendored
+  copy with no stated reason cannot be told apart from an accident. Relative paths resolve against
+  the manifest's own directory, so it is portable between checkouts.
+- **Exit codes:** `0` reconciled, `1` upstream moved, `2` no manifest configured (a skip), `3`
+  manifest named and unreadable (an error). Upstream being ABSENT is not drift: on a machine without
+  the source there is nothing to compare, which is the very situation the resident copy exists for.
+- **Vendoring shape that makes this cheap:** consumer preamble, a marker line, then the upstream
+  file byte for byte. Re-vendoring becomes a concatenation and the diff to review is genuinely the
+  upstream diff rather than a merge.
+
 ### `memory-consolidate`
+- **Candidate signal quality (since 2026-08-16):** `--candidates` requires at least one CONTENT
+  signal (currently filename-stem overlap). A shared `originSessionId` is a TIEBREAKER that raises
+  the rank of a pair which already overlaps, never sufficient on its own: two notes share a session
+  because they share a clock, not a subject. Measured on a 317-file store, admitting co-session
+  alone gave 1846 pairs of which 1806 were topically unrelated; requiring content gives 40, and
+  co-session still corroborates 19 of them. The suppressed count and the rule are reported in the
+  payload under `suppressed`, because a silent cap reads as 'nothing more to find'.
+- **Exit codes (since 2026-08-16):** `0` the store was reached, including a store that exists and is
+  empty (a new collection is legitimate); `2` no store is configured, which stays a `doctor` skip;
+  `3` a store WAS configured and could not be read, which `doctor` reports as an error and fails the
+  roll-up. The 2/3 split exists because a mistyped or moved store used to be indistinguishable from
+  an unused feature: it exited 0, and the SessionStart hook that reads `--terse` stays silent on a
+  zero exit, so the session looked permanently healthy. See ADR-0002's amendment.
 - **compute x effect:** the engine is deterministic x read-only; the full **memory-audit** capability is
   hybrid x mutating (engine + judgment + gate + audit via an adapter).
 - **What it does:** the deterministic analyzer behind the memory-audit - computes a multi-metric health

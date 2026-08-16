@@ -1,0 +1,38 @@
+{
+  "engine": "vault-ref-audit.py",
+  "args": [
+    "--check",
+    "--json"
+  ],
+  "env": {
+    "VAULT_ROOT": "{vault}"
+  },
+  "unset_env": [
+    "VAULT_SCAN_EXCLUDE",
+    "FRONTMATTER_SCHEMA"
+  ],
+  "must_detect": [
+    {
+      "why": "a wikilink whose target does not exist",
+      "path": "broken_links",
+      "contains": "missing-target"
+    },
+    {
+      "why": "a note that nothing links to",
+      "path": "orphans",
+      "contains": "orphan.md"
+    }
+  ],
+  "must_not_detect": [
+    {
+      "why": "a link that resolves must never be reported broken",
+      "path": "broken_links",
+      "absent": "real-target"
+    },
+    {
+      "why": "a note that IS linked must never be reported an orphan",
+      "path": "orphans",
+      "absent": "real-target.md"
+    }
+  ]
+}

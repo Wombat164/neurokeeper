@@ -125,7 +125,19 @@ def _candidates(files):
     toks = {n: _stem_tokens(n) for n in names}
     sess = {n: _frontmatter(files[n]["text"]).get("originsessionid", "") for n in names}
 
-    merge = []
+    # Co-session is a TIEBREAKER, never sufficient on its own (issue #31). Two notes share a session
+    # id because they share a clock, not a subject: one long working session writes many memories
+    # about unrelated things. Measured on a real store of 317 files, admitting co-session alone
+    # produced 1846 pairs of which 1806 (98%) had no topical relationship at all. A pre-filter whose
+    # output is quadratic in the size of the busiest session is not narrowing anything, and the cost
+    # lands on whatever judge reads the residue.
+    #
+    # So a pair must carry at least one CONTENT signal to be emitted; co-session then rides along to
+    # raise its rank. Suppressed pairs are counted and reported rather than dropped quietly: a
+    # silent cap reads as "nothing more to find", which is the failure mode that makes a narrowing
+    # filter dangerous rather than merely noisy.
+    CONTENT_SIGNALS = ("stem_overlap",)
+    merge, suppressed_cosession_only = [], 0
     for i, a in enumerate(names):
         for b in names[i + 1:]:
             signals = {}
@@ -134,8 +146,12 @@ def _candidates(files):
                 signals["stem_overlap"] = shared
             if sess[a] and sess[a] == sess[b]:
                 signals["same_session"] = sess[a][:12]
-            if signals:
-                merge.append({"a": a, "b": b, "signals": signals})
+            if not signals:
+                continue
+            if not any(k in signals for k in CONTENT_SIGNALS):
+                suppressed_cosession_only += 1
+                continue
+            merge.append({"a": a, "b": b, "signals": signals})
 
     def _stances(text):
         low = text.lower()
@@ -160,7 +176,13 @@ def _candidates(files):
             if opp:
                 contra.append({"a": a, "b": b, "shared_keywords": shared, "opposite_stances": opp})
 
-    return {"merge_candidates": merge, "contradiction_candidates": contra}
+    return {"merge_candidates": merge,
+            "contradiction_candidates": contra,
+            # Reported, not hidden: a consumer can see how much was filtered and on what grounds,
+            # so "40 candidates" is never mistaken for "40 is all there was".
+            "suppressed": {"cosession_only": suppressed_cosession_only,
+                           "rule": "a pair needs a content signal; co-session alone is a "
+                                   "tiebreaker, not evidence of relatedness"}}
 
 
 def parse_args():
@@ -181,11 +203,38 @@ def main():
         try: _s.reconfigure(encoding="utf-8")
         except Exception: pass
     today_str, as_json, check, terse, lint, candidates = parse_args()
-    # Graceful no-op if the memory store is unset/missing (avoids an os.listdir traceback in --terse/
-    # --check/hook contexts). Preserves behaviour when the dir exists.
+    # ABSENT is not EMPTY (issue #30). This used to print a note and exit 0, so a store that could
+    # not be reached was indistinguishable from a store with nothing in it, and the unreachable case
+    # is the one that looks fine. --terse feeds a SessionStart hook that stays silent on a zero exit,
+    # so a mistyped or moved path produced a cheerful, permanently healthy session.
+    #
+    # The general rule, which recurs across engines: an engine that could not reach its subject must
+    # not return the same signal as one that reached it and found nothing. An EMPTY store that
+    # exists is legitimate (a new collection) and still reports normally on exit 0.
+    # Exit codes distinguish three states that used to collapse into one cheerful zero:
+    #   0  reached the store (even if it is empty: a new collection is legitimate)
+    #   2  NOT CONFIGURED  -- no CLAUDE_MEMORY_DIR and no default store. Nothing was asked of us.
+    #   3  UNREACHABLE     -- a store WAS configured and could not be read. That is a defect.
+    # The 2/3 split matters because vault-doctor treats 2 as "skipped, not a health failure", which
+    # is right for "you did not turn this on" and badly wrong for "you turned it on and it is
+    # pointing at nothing".
+    configured = bool(os.environ.get("CLAUDE_MEMORY_DIR"))
     if not os.path.isdir(MEM_DIR):
-        print(f"memory: CLAUDE_MEMORY_DIR not set or not found ({MEM_DIR}); nothing to audit.")
-        sys.exit(0)
+        if not configured:
+            print(f"memory: no store configured and no default at {MEM_DIR}; nothing to audit.\n"
+                  f"  Set CLAUDE_MEMORY_DIR to enable the memory checks.", file=sys.stderr)
+            sys.exit(2)
+        print(f"memory: store not found at {MEM_DIR} (from CLAUDE_MEMORY_DIR).\n"
+              f"  This is an ERROR, not an empty store: the analyzer could not reach its subject,\n"
+              f"  so it has no answer to give, and 'nothing to audit' would be a lie.\n"
+              f"  Fix the path, or create the directory if this collection is genuinely new. An\n"
+              f"  EMPTY store that exists reports normally and exits 0.", file=sys.stderr)
+        sys.exit(3)
+    if not os.access(MEM_DIR, os.R_OK):
+        print(f"memory: store at {MEM_DIR} exists but is not readable.\n"
+              f"  Same class as a missing store: no answer is available, so none is reported.",
+              file=sys.stderr)
+        sys.exit(3)
     now = (datetime.strptime(today_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
            if today_str else datetime.now(timezone.utc))
 
@@ -271,8 +320,10 @@ def main():
     # ---- categories ----
     orphans = [r["file"] for r in rows
                if not r["referenced_in_index"] and not r["is_archive"]]
-    # broken links in MEMORY.md
-    mem_text = files["MEMORY.md"]["text"]
+    # broken links in MEMORY.md. A store can legitimately exist without an index yet: that is a new
+    # collection, not a defect, and it must not traceback (it used to raise KeyError here, which is
+    # why "an empty store exits 0" was only ever true on paper).
+    mem_text = files.get("MEMORY.md", {}).get("text", "")
     broken = []
     for m in re.finditer(r"\(([A-Za-z0-9_][\w./-]*\.md)\)", mem_text):   # any case / underscore-lead / subdir
         ref = m.group(1)
