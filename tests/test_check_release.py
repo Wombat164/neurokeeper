@@ -11,7 +11,6 @@ prose that legitimately names an old version.
 """
 import importlib.util
 import os
-import sys
 
 HARNESS = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ENGINE = os.path.join(HARNESS, "scripts", "check-release.py")

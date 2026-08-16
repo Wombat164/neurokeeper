@@ -19,3 +19,6 @@ bootstrap/repos.txt
 
 # vault-correlate index cache (local build artifact)
 .vault-correlate-cache.json
+
+# uv resolves an ephemeral lock when it is used to run a dev tool; the project builds with hatch.
+uv.lock
