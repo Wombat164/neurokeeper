@@ -510,6 +510,14 @@ def main():
         b = baseline_info
         nag = f", {b['resolved']} now resolved (rewrite --write-baseline to shrink)" if b["resolved"] else ""
         print(f"    baseline {b['file']}: {b['size']} accepted, reporting net-new only{nag}")
+        # One line that carries the whole adoption posture: the tool does not punish you for the
+        # past, and it will not let the present get worse. Someone who installs this on a mature
+        # collection sees a large number first and concludes it is not for them; this is the frame
+        # that answers that, so it goes on its own line rather than inside a longer sentence.
+        net_new = (len(broken_links) + len(broken_canvas) + len(broken_base) + len(broken_anchors)
+                   + len(orphans) + len(dead_ends) + len(isolated) + len(orphan_media)
+                   + len(stem_collisions))
+        print(f"    adoption: {net_new} new, {b['size']} baselined, {b['resolved']} resolved")
     _section("unresolved links (incl. intentional forward-links; informational)", broken_links,
              lambda b: f"{b['note']}  ->  {b['target']}")
     _section("broken canvas refs", broken_canvas, lambda b: f"{b['canvas']}  ->  {b['target']}", 15)

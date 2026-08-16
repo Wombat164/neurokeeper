@@ -34,7 +34,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/quickstart-dark.svg">
-    <img src="assets/quickstart-light.svg" alt="Terminal: pipx install neurokeeper, then neurokeeper doctor --check over the shipped example vault, ending in roll-up OK" width="720">
+    <img src="assets/quickstart-light.svg" alt="Terminal: ref-audit reports 257 findings on an inherited 120-note collection, --write-baseline accepts 255 of them, and the next run reports adoption: 2 new, 255 baselined, 0 resolved" width="720">
   </picture>
 </p>
 
@@ -45,7 +45,7 @@ harness-agnostic **engines** (deterministic scripts) + **prompt templates** + **
 a thin **adapter** binds them to a specific runtime. The Claude Code plugin is *one* adapter: the same
 core works from an MCP server, a plain CLI, or any other LLM harness.
 
-> Status: **0.6.0 (alpha).** Licensed **MIT** (see [`LICENSE`](LICENSE)).
+> Status: **0.7.0 (alpha).** Licensed **MIT** (see [`LICENSE`](LICENSE)).
 
 ## Why
 "Skills" (and plugins, hooks) are runtime-specific and not portable. Putting the real logic in **engines
@@ -120,6 +120,9 @@ default, mutating only with `--apply` behind the Obsidian-running guard; git is 
 - `selftest.py` - negative control for the detectors: each engine must find every defect planted in its own known-bad fixture, and must NOT fire on the clean notes beside them (read-only)
 - `hooks-audit.py` - finds gates that look installed and do not run: untracked, shadowed by `core.hooksPath`, shipped but unwired, or pointed at a directory that is not there (read-only)
 - `custody-audit.py` - durability rather than content: is each declared artifact tracked or deliberately ignored, is the encrypted counterpart current and committed, is `HEAD` on a remote, is this the canonical working copy (read-only)
+- `register-lint.py` - does this collection use its own identifiers correctly: wrong-category, alias, compound, unknown, weighted by each register entry's provenance (read-only)
+- `path-audit.py` - what still points at a location this project has left: broken worktrees, editable installs, dangling links, a hooksPath naming nothing (read-only)
+- `denylist-audit.py` - audits the term list a scanning gate enforces: partially-listed families, and entries that no longer match anything (read-only)
 - `vendor-audit.py` - reports when an upstream file MOVES under a copy kept vendored on purpose, never that the two differ (read-only)
 - `_vault_lib.py` - shared core (walk / frontmatter / folder-suffix / kebab); `_vault_guard.py` - Obsidian-running guard
 
@@ -133,12 +136,12 @@ The same engines run as a commit/CI gate. neurokeeper ships a `.pre-commit-hooks
 # .pre-commit-config.yaml (in your vault repo)
 repos:
   - repo: https://github.com/Wombat164/neurokeeper
-    rev: v0.6.0
+    rev: v0.7.0
     hooks: [{ id: neurokeeper-doctor }]
 ```
 ```yaml
 # a GitHub workflow step
-- uses: Wombat164/neurokeeper@v0.6.0
+- uses: Wombat164/neurokeeper@v0.7.0
   with: { vault-path: ".", engine: "doctor", strict: "false" }
 ```
 Exit semantics follow [ADR-0002](docs/adr-0002-doctor-exit-semantics.md) (fails on broken `.canvas`/`.base`

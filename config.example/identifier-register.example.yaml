@@ -1,0 +1,52 @@
+# Identifier register (example) -- copy, edit, and point IDENTIFIER_REGISTER at it.
+#
+# Declares the identifiers a collection uses, what KIND of thing each one is, how each came to be
+# known, and how they relate. Optional: without IDENTIFIER_REGISTER every consumer skips.
+#
+# See docs/adr-0005-identifier-register.md for why this is one file rather than four.
+
+# `tier` values are YOURS. This tool ships no fixed vocabulary, because encoding one organisation's
+# shape into a domain-neutral engine is exactly what ADR-0004 refuses. Declare the categories your
+# collection actually uses; the engines only check consistency against what you declare here.
+tiers: [vehicle, request, agreement, platform]
+
+# The field each tier is expected to appear under, when a document declares it. This is what lets
+# the lint catch a wrong-category value: an agreement written under the request field is a real
+# defect that structural validation cannot see, because both fields are known and both values are
+# strings.
+tier_fields:
+  vehicle: programme
+  request: request
+  agreement: contract
+  platform: platform
+
+entities:
+  # source is the LIMIT ON ENFORCEMENT, not a comment. See ADR-0005.
+  #
+  #   decided   a human stated it. A conformance failure is a real finding.
+  #   harvested read out of existing metadata and typed by rule. A failure may mean this REGISTER
+  #             is wrong rather than the document, and the message says so.
+  #   inferred  a tool named it, unconfirmed. NEVER enforced, never auto-fixed. It is recorded so
+  #             that a guess stays visible as a guess instead of being promoted by the only
+  #             mechanism that ever looks at it.
+  ALPHA:
+    tier: vehicle
+    source: decided
+    aliases: [alpha-programme, "Alpha Programme"]
+  ALPHA-REQ:
+    tier: request
+    source: harvested
+  2026-AG-4:
+    tier: agreement
+    source: harvested
+    aliases: [AG-4/2026]
+  ACME-DATA:
+    tier: platform
+    source: inferred
+
+# Typed relations. `parent` is the only edge type the shipped consumers read: correlate uses it so
+# that an item naming a child identifier can still reach notes written at the parent's level, which
+# is how people actually write. Other edge types are preserved and ignored.
+edges:
+  - {from: ALPHA-REQ, type: parent, to: ALPHA}
+  - {from: 2026-AG-4, type: parent, to: ALPHA-REQ}

@@ -31,21 +31,31 @@ LEAD = 21.0
 PAD_X, PAD_TOP = 26.0, 34.0
 
 # (column, text, role). role: fg | muted | accent | dim
+#
+# The card shows adoption on a MESSY collection, not a clean one. A clean-vault demo cannot answer
+# the objection every prospective user actually has: "I have a decade of mess and this thing will
+# shout at me about all of it." The last line is the whole posture in one frame, which is that the
+# tool does not punish you for the past and will not let the present get worse.
+#
+# Every number here is from a real run over a generated 120-note collection with realistic decay,
+# not an illustration. Re-run the flow before changing them.
 LINES = [
-    [(0, "$", "accent"), (2, "pipx install neurokeeper", "fg")],
-    [(0, "$", "accent"), (2, "neurokeeper doctor --check", "fg")],
+    [(0, "$", "accent"), (2, "neurokeeper ref-audit --check", "fg"),
+     (32, "# a collection you inherited", "dim")],
+    [(0, "=== VAULT REF AUDIT (120 notes, 120 files) ===", "fg")],
+    [(0, "ref-audit OK: 0 broken canvas/base refs (120 notes;", "muted")],
+    [(2, "28 unresolved links, orphans 97, dead-ends 75)", "muted")],
     [],
-    [(0, "=== neurokeeper doctor ===", "fg")],
-    [(0, f"root examples/vault | 4 files scanned | neurokeeper {_version()} | 592ms", "muted")],
-    [(2, "[ok]", "accent"), (10, "taxonomy-inventory", "fg")],
-    [(2, "[ok]", "accent"), (10, "ref-audit", "fg"),
-     (21, "broken_links=1, broken_canvas=0, broken_base=0,", "muted")],
-    [(21, "broken_anchors=0, orphans=0, dead_ends=0, isolated=0,", "muted")],
-    [(21, "orphan_media=0, stem_collisions=0", "muted")],
-    [(2, "[skip]", "dim"), (10, "frontmatter-lint", "dim"), (28, "(required config not set)", "dim")],
-    [(2, "[skip]", "dim"), (10, "memory-consolidate", "dim"), (30, "(required config not set)", "dim")],
+    [(0, "$", "accent"), (2, "neurokeeper ref-audit --write-baseline .nk-baseline.json", "fg")],
+    [(0, "ref-audit: wrote", "muted"), (17, "255", "fg"),
+     (21, "accepted findings to baseline", "muted")],
     [],
-    [(0, "roll-up:", "fg"), (9, "OK", "accent")],
+    [(0, "$", "accent"), (2, "neurokeeper ref-audit --baseline .nk-baseline.json --check", "fg")],
+    [(2, "adoption:", "fg"), (12, "2 new", "accent"),
+     (17, ", 255 baselined, 0 resolved", "muted")],
+    [],
+    [(0, "# the backlog is visible and yours to clear.", "dim")],
+    [(0, "# only the 2 you just introduced gate the commit.", "dim")],
 ]
 
 ROLE = {"fg": FG, "muted": MUTED, "accent": ACCENT, "dim": DIM}

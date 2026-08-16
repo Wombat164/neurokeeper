@@ -6,6 +6,64 @@ Full per-release notes: https://github.com/Wombat164/neurokeeper/releases
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-08-16
+
+### Added
+- **`denylist-audit`**: audits the term list a scanning gate enforces, which nothing else did. A
+  partially-listed identifier family certifies its own siblings, because the member that is caught
+  is what makes the clean verdict on the others credible; given a register that check is fully
+  deterministic. It also proves each entry still MATCHES something, after a real incident where
+  narrowing a term produced a pattern containing a literal backspace that matched nothing at all.
+  Standalone by design: it audits any term list, and composes with a scanning gate rather than
+  depending on one.
+- **`path-audit`**, closing the last open principle (O1, now P9). Reports what still points at a
+  location the project has left: broken and stale worktrees, editable installs naming a path that is
+  gone, dangling links, and a `core.hooksPath` pointing at nothing. Each finding carries its repair
+  command. Prompted by renaming this repository, which silently broke both of its own worktrees.
+- **Substrate awareness.** A probe reports whether the filesystem under a root can be trusted, and
+  `doctor`'s run-receipt names it once per run. On synced mounts size and mtime are the sync
+  client's answers rather than the author's.
+
+### Fixed
+- **`correlate`'s index cache could serve stale cards indefinitely on a synced mount.** The key was
+  `(mtime, size)`; on those substrates an edited note can keep both, so the cache never invalidated
+  and the run reported plausible output over an index that no longer matched the notes. The key is
+  now a content hash wherever the probe distrusts metadata, and `CACHE_VERSION` is bumped because
+  old entries are not comparable. Covered by a test that edits content while holding mtime and size
+  fixed, and which fails against the previous behaviour.
+- **The identifier register (ADR-0005)** and **`register-lint`**, its first consumer. One optional
+  file at `IDENTIFIER_REGISTER` declares identifiers, their category, aliases, typed relations and
+  provenance; the lint catches four classes structural validation cannot express: wrong-category,
+  alias, compound and unknown. Report-only by design, because applying a new register to a mature
+  collection produces hundreds of day-one findings and enforcement belongs to the diff-scoped guard.
+- **`correlate` inherits a parent's matches** down `parent` edges when a register is
+  configured, so an item naming a specific identifier reaches notes written at the level
+  people actually write at. Scored below a direct hit and decaying with distance.
+- **Provenance is the limit on enforcement**, not metadata. `decided` entries may be enforced and
+  fixed; `harvested` may be enforced but never fixed, and messages hedge toward the register being
+  wrong rather than the document; `inferred` is never enforced at all. Without that split, a name a
+  tool invented becomes canonical by being the only spelling that passes a check, and the tool
+  starts writing reality instead of describing it.
+- **How-to: "Adopt on an existing collection"**, the case every actual user has and the one that
+  existed only in the changelog. Someone installs on a mature collection, sees a number that looks
+  like a verdict on them, and closes the terminal. The sequence that avoids that is baseline, gate
+  on net-new, clear opportunistically, re-baseline and watch it shrink.
+- **An `adoption:` summary line** on `ref-audit` when a baseline is in use: `N new, N baselined,
+  N resolved`. One frame carrying the whole posture, that the past is not billed to you and the
+  present cannot get worse.
+- The quickstart demo now shows the MESSY case rather than a clean run, because a clean-vault demo
+  cannot answer the objection every prospective user actually has. Every number on it comes from a
+  real run over a generated 120-note collection with realistic decay: 257 findings on day one, 255
+  baselined, then 2 new.
+- **Wiki explanation, "Evidence and enforcement"**: the invariant every engine is shaped by, stated
+  once instead of implied across an ADR, several roadmap items and one engine page. Both halves are
+  load-bearing, and the second is the one usually dropped: no verdict stronger than its evidence,
+  no enforcement stronger than its mandate.
+- **ADR-0004, the substrate boundary**: where this project's edge falls, written as refusals. No OS
+  provisioning, no generic machine-drift detection, no network fetch inside an engine (that one is
+  structural: the CI-gate positioning depends on offline determinism), no scheduler introspection,
+  no model-scored similarity in the core. Also records that a named market gap is not a mandate.
+
 ## [0.6.0] - 2026-08-16
 
 ### Added

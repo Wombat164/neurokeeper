@@ -177,6 +177,53 @@ tags:
   `VAULT_FORBIDDEN_ZONES` skip (never writes those files).
 - **Env:** `VAULT_ROOT`, `VAULT_NORENAME_ZONES`, `VAULT_FORBIDDEN_ZONES`.
 
+- **Identifier inheritance (since 2026-08-16):** when `IDENTIFIER_REGISTER` is set,
+  `correlate` follows `parent` edges so an item naming a specific identifier still reaches
+  notes written at its parent's level, which is how people actually write. Inherited
+  evidence is scored below a direct hit and decays with each step, because a parent is about
+  the child AND about that child's siblings; equal weighting would let a parent-level note
+  outrank the note actually about the thing. A register that is named and unusable exits 2
+  rather than scoring on without it.
+### Substrate awareness (all engines)
+- **What it is:** knowledge collections live disproportionately on synced mounts (Drive, Dropbox,
+  OneDrive). On those substrates `size`, `mtime` and existence-immediately-after-a-write are not
+  facts: placeholders report allocation-rounded sizes, files hydrate on access, and mtime belongs to
+  the sync client rather than to whoever wrote the note.
+- **`doctor`'s run-receipt names it** once per run, under `substrate`. The receipt already proved
+  WHICH root was scanned and how many files; this is the other half, whether the filesystem's
+  answers about those files can be trusted at all.
+- **`correlate`'s index cache keys on content where metadata is untrusted.** On an ordinary disk the
+  key stays the cheap `(mtime, size)` pair. On a synced mount an edited note can keep both values,
+  so the cache would serve a stale card forever with plausible output and no error; the key becomes
+  a content hash instead. `CACHE_VERSION` was bumped, because entries keyed the old way are not
+  comparable.
+- **The rule for new engines:** measure the bytes you ENCODED, never a size read back from a file
+  you just wrote. `_substrate.write_verified()` exists for that.
+
+### `register-lint`
+- **compute x effect:** deterministic x read-only.
+- **What it does:** asks whether a collection uses its own identifiers correctly. Structural
+  validation asks whether a field is KNOWN; it cannot ask whether a value is THE RIGHT KIND OF
+  THING, because both fields are known and both values are strings.
+- **Four classes:** `wrong-category` (a value the register calls an agreement, declared under the
+  request field), `alias` (a non-canonical spelling, invisible to exact matching), `compound` (two
+  identifiers packed into one value), `unknown` (an identifier the register has never heard of).
+- **Report-only, deliberately.** Applying a new register to a mature collection produces hundreds of
+  findings on day one, a reader stops at the third stale one, and the check gets switched off.
+  Enforcement is the author-time guard's job, scoped to the lines a change touches.
+- **Provenance is the limit on enforcement** (ADR-0005), not decoration. `decided` entries may be
+  enforced and auto-fixed. `harvested` entries may be enforced but never auto-fixed, and the message
+  hedges, because a mismatch may mean the REGISTER is wrong rather than the document. `inferred`
+  entries are never enforced at all: a name a tool invented must not become canonical by being the
+  only spelling that passes a check.
+- **Config:** `IDENTIFIER_REGISTER` points at the register. Start from
+  `config.example/identifier-register.example.yaml`. Tiers are the collection's own; this tool ships
+  no fixed vocabulary, per ADR-0004.
+- **Flags:** `--root <path>` lints another collection, `--check` for the gate, `--json` for a
+  machine consumer.
+- **Exit codes:** `0` conformant, `1` findings, `2` no register configured, `3` register named and
+  unusable. An entry with no `source` is refused rather than assumed decided.
+
 ### `custody-audit`
 - **compute x effect:** deterministic x read-only.
 - **What it does:** asks whether the substrate is actually KEPT. Every other engine validates
@@ -202,6 +249,48 @@ tags:
   machine consumer.
 - **Exit codes:** `0` kept, `1` findings, `2` no manifest configured, `3` manifest named and
   unreadable.
+
+### `denylist-audit`
+- **compute x effect:** deterministic x read-only.
+- **What it does:** audits the term list a scanning gate enforces, which nothing else does. A gate
+  is only as good as its list, and lists of that kind are grown reactively, one leak at a time.
+- **Two failures it catches, both ending in a green verdict:**
+  - **A partially-listed family certifies its own siblings.** Holding two members of an identifier
+    family and not the other three does not merely miss three terms: the member that IS caught is
+    what makes the clean verdict on the others credible. Given a register, this is fully
+    deterministic, because the register already knows which identifiers are siblings.
+  - **A narrowed entry can be silently dead.** Fixing a real false positive once produced a pattern
+    containing a literal backspace character, which matched nothing at all. A term silently disabled
+    is worse than one that over-fires, because over-firing is visible.
+- **Findings:** `dead-pattern` (does not compile, or does not match its own declared example),
+  `no-example` (a regex entry whose liveness cannot be established), `family-partial`,
+  `variant-unlisted` (a spelling that occurs in the corpus and no entry matches).
+- **Declaring an example** is what makes liveness checkable: `regex:(?i)ACME  # example: ACME`.
+  A plain literal needs none, since it always matches itself.
+- **Variants are only reported when present in the corpus.** Generating variants is easy and
+  generating useful ones is not, so occurrence is the filter.
+- **Flags:** `--denylist <file>` (or `EGRESS_DENYLIST`), `--register <file>` to enable the family
+  check, `--corpus <root>` to enable variant detection, `--check`, `--json`.
+- **Exit codes:** `0` clean, `1` findings, `2` no denylist given, `3` denylist named and unreadable.
+
+### `path-audit`
+- **compute x effect:** deterministic x read-only.
+- **What it does:** finds what still points at a location this project has left. Closes principle P9.
+- **Why:** every long-lived collection eventually moves, and every absolute path embedded in
+  worktrees, editable installs, links and hook configuration keeps naming the old place. Nothing
+  announces it. Renaming this repository silently broke both of its own worktrees, and the failure
+  surfaced only when someone next touched one of them.
+- **The extra turn beyond an ordinary stale path:** a rollback copy usually still exists at the old
+  location, so a tool rooted there does not merely succeed, it succeeds against real, stale content.
+- **Findings:** `worktree-broken` (pointer names a gitdir that does not resolve),
+  `worktree-stale` (registered, directory gone), `editable-install` (a `.pth` naming a path that is
+  gone), `broken-link` (a symlink or junction whose target is missing; on Windows a dangling
+  junction reports as absent rather than erroring, so a walk through it silently finds nothing),
+  `hookspath-missing` (so no hook runs at all).
+- **Every finding carries its repair command.** A check that names a fault without its remedy gets
+  silenced as surely as one that fires too often.
+- **Flags:** `--root <path>`, `--check`, `--json`.
+- **Exit codes:** `0` clean, `1` findings, `2` not a git repository.
 
 ### `hooks-audit`
 - **compute x effect:** deterministic x read-only.

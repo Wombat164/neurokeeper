@@ -102,3 +102,41 @@ def test_unstaged_edits_are_not_in_scope(tmp_path):
     (v / "unstaged.md").write_text("links to [[gone-c]]\n", encoding="utf-8")
     notes = [x["note"] for x in _json(v, "--staged")["broken_links"]]
     assert notes == [], notes
+
+
+# --- the adoption line (issue #29) -------------------------------------------------------------
+
+def test_adoption_line_carries_the_whole_posture(tmp_path):
+    """new / baselined / resolved, on one line.
+
+    Someone adopting on a mature collection sees a large number first and concludes the tool is not
+    for them. This line is the answer to that, so it has to be present and correct rather than
+    inferable from three other lines.
+    """
+    v = _vault(tmp_path)
+    base = tmp_path / "baseline.json"
+    r = _run(v, "--write-baseline", str(base))
+    assert r.returncode == 0, r.stderr
+
+    # nothing new yet
+    out = _run(v, "--baseline", str(base)).stdout
+    assert "adoption: 0 new," in out, out
+
+    # introduce one break: it, and only it, is new
+    (v / "today.md").write_text("links to [[not-a-note]]\n", encoding="utf-8")
+    out = _run(v, "--baseline", str(base)).stdout
+    assert "adoption:" in out
+    assert "0 new" not in out.split("adoption:")[1].splitlines()[0]
+
+
+def test_resolved_count_moves_when_a_baselined_finding_is_fixed(tmp_path):
+    # The progress metric. It has to move, or step 5 of the adoption how-to is a lie.
+    v = _vault(tmp_path)
+    base = tmp_path / "baseline.json"
+    _run(v, "--write-baseline", str(base))
+    before = _run(v, "--baseline", str(base)).stdout
+    assert "0 resolved" in before
+
+    (v / "pre-existing.md").write_text("links to [[hub]]\n", encoding="utf-8")
+    after = _run(v, "--baseline", str(base)).stdout
+    assert "0 resolved" not in after.split("adoption:")[1].splitlines()[0], after
