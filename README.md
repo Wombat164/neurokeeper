@@ -112,7 +112,7 @@ A name colliding with a built-in is refused rather than silently preferred eithe
 on the list that does not exist is a hard error: reporting your engines as *absent* when they are merely
 *misconfigured* is the failure this tool exists to not commit.
 Full contract, worked example, and the decide-where-it-belongs test:
-[Extend with your own engine](https://wombat164.github.io/neurokeeper/how-to/extend-with-your-own-engine/).
+[Extend with your own engine](https://wombat164.github.io/neurokeeper/how-to/extend-with-your-own-engine).
 
 ## First capability: `memory-audit`
 A file-based-memory health check + consolidation: deterministic engine
