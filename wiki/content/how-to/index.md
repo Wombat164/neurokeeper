@@ -144,6 +144,81 @@ already exists, and get the evidence for that answer. Read-only.
 
 ---
 
+## Enforce your identifiers as documents are written
+
+**Goal:** stop new contradictions entering the collection, without being nagged about the ones
+already there.
+
+The whole-collection report (`neurokeeper register-lint`) never blocks, on purpose. Point a new
+register at a mature collection and it finds hundreds of things nobody present did; a reader ignores
+all of them to reach the one that is theirs, and then stops reading. `--guard` is the half that
+enforces, and it only enforces what your edit introduced.
+
+1. Run it against one document, as an author-time check:
+   ```bash
+   export IDENTIFIER_REGISTER="/path/to/your-register.yaml"
+   neurokeeper register-lint --guard "02 - Projects/migration-plan.md"
+   ```
+   A clean edit prints nothing and exits 0. An edit that touches an existing bad line is still your
+   edit, so it blocks; an edit elsewhere in that same document does not.
+2. Wire it as a pre-commit hook (exit 1 blocks the commit):
+   ```yaml
+   - repo: local
+     hooks:
+       - id: register-guard
+         name: identifiers conform to the register
+         entry: neurokeeper register-lint --guard
+         language: system
+         files: \.md$
+   ```
+3. Or as a Claude Code `PostToolUse` hook, which needs exit **2** to block and feed the message back:
+   ```bash
+   neurokeeper register-lint --guard "$FILE" --hook
+   ```
+4. To see the backlog you are not being blocked on, add `--verbose`, or run the whole-collection
+   report scoped to your change:
+   ```bash
+   neurokeeper register-lint --staged        # findings in the commit; the rest counted, not listed
+   ```
+
+> [!warning] It will not block on an entry it only inferred
+> Provenance limits enforcement (ADR-0005). A register entry marked `inferred` reports as advisory
+> and never blocks: stopping someone's work over a guess the tool made about their own vocabulary
+> is how the tool loses the argument about whether it should exist at all.
+
+---
+
+## Find notes that should link to the one you just wrote
+
+**Goal:** after authoring or heavily editing a note, find the *existing* notes on the same subject
+that it is not connected to. Read-only; it proposes links and never writes one.
+
+`ref-audit` tells you your links resolve. It cannot tell you about the note you did not know was
+there. That gap is invisible to every structural check: nothing is broken, nothing is orphaned, and
+the collection holds two unconnected halves of one subject.
+
+1. Ask about a specific note:
+   ```bash
+   export VAULT_ROOT="/path/to/your/notes"
+   neurokeeper semantic-gaps --note "02 - Projects/migration-plan.md"
+   ```
+2. Or ask about everything you touched, which is the usual case at the end of a session:
+   ```bash
+   neurokeeper semantic-gaps --since HEAD~1          # or --since main
+   neurokeeper semantic-gaps --since HEAD~1 --json   # for an agent to consume
+   ```
+3. **Read the evidence, not the score.** Each candidate carries why it matched - a shared code, a
+   title appearing verbatim, rare tokens in common. A high score with thin evidence is exactly the
+   case you should reject.
+4. Accept the ones that are genuinely related and write those links yourself. Notes already linked
+   in either direction are excluded, so what you see is the remainder.
+
+> [!note] Why it will not fail your build
+> It always exits 0 and is not part of `doctor`. Every output is a judgment call, and a suggestion
+> engine that can fail a gate is one whose gate gets switched off.
+
+---
+
 ## Adopt on an existing collection
 
 Adoption on a clean collection is easy and nobody has one. On a real collection, years old, the
@@ -277,7 +352,7 @@ existing markdown ecosystem instead of duplicating it.
    ```yaml
    repos:
      - repo: https://github.com/Wombat164/neurokeeper
-       rev: v0.8.0
+       rev: v0.9.0
        hooks: [{ id: neurokeeper-doctor }]   # or: neurokeeper-ref-audit
    ```
    pre-commit installs the package in an isolated venv and runs the CLI against the repo root.
@@ -287,7 +362,7 @@ existing markdown ecosystem instead of duplicating it.
    - uses: actions/checkout@v4
    - uses: DavidAnson/markdownlint-cli2-action@v16    # markdown style (not neurokeeper's job)
    - uses: lycheeverse/lychee-action@v2               # external link existence (not neurokeeper's job)
-   - uses: Wombat164/neurokeeper@v0.8.0            # broken wikilinks/.canvas/.base, orphans, health
+   - uses: Wombat164/neurokeeper@v0.9.0            # broken wikilinks/.canvas/.base, orphans, health
      with: { vault-path: ".", engine: "doctor", strict: "false" }
    ```
 3. Understand what fails it. The exit code follows the doctor contract: broken `.canvas`/`.base` refs or an

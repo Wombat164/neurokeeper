@@ -88,7 +88,40 @@ is a read-only capability. (For the env vars each engine reads, see the
 > If it is unset and no schema is found, those engines print a one-line message telling you how to set
 > it (instead of a traceback). The `taxonomy-inventory` engine you ran above needs no schema.
 
-## Step 5 - Try the Claude Code adapter (optional)
+## Step 5 - Let `init` do the configuring
+
+Steps 3 and 4 showed the engines one at a time, which is how you learn what they are. `init` is how
+you set one up for real: it looks at your collection, offers the engines with the config each one
+costs, and writes that config.
+
+Look before you leap - `--dry-run` writes nothing:
+
+```bash
+neurokeeper init --collection "/path/to/your/notes" --dry-run
+```
+
+The first line of output is the number of notes it can see. **Check it.** If that number is wrong,
+the root is wrong, and every "clean" report you get afterwards would be a report about the wrong
+place. Then run it for real:
+
+```bash
+neurokeeper init --collection "/path/to/your/notes"
+```
+
+Answer three questions and it writes into `<collection>/.neurokeeper/`, prints every file it wrote,
+tells you which variables to export, and finishes by running `doctor --check` in front of you.
+
+> [!tip] `--schema derive` reads your collection instead of asking you to describe it
+> It drafts a schema from the frontmatter you already use: fields with a handful of values become
+> enumerated axes, free-text fields become open. The draft is written `provenance: harvested` and
+> says so in the file, because it describes what your collection **contains**, not what it should.
+> Read it and delete the axes that are accidents before treating it as canon.
+
+> [!warning] It configures; it never writes content
+> No notes, no folders, no naming convention. A tool that invents a structure on day one has chosen
+> your collection's shape before you have.
+
+## Step 6 - Try the Claude Code adapter (optional)
 
 The CLI you just used is one face of the core. The Claude Code plugin is another - the *same* engines,
 exposed as skills and hooks:

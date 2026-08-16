@@ -22,6 +22,34 @@ tags:
 
 ## Engine catalog
 
+### `init`
+- **compute x effect:** deterministic x mutating (writes CONFIG only).
+- **What it does:** configures the tool for a collection and tells you what it did. Adoption on an
+  existing collection was documented; starting from nothing was not. A fresh collection gets engines
+  that each skip cleanly when unconfigured, which is correct and also means it reports a clean bill
+  of health while doing almost nothing - and a newcomer cannot tell "correctly minimal" from
+  "silently doing nothing".
+- **It states the note count it can see, first, before writing anything.** A wizard that silently
+  scopes to the wrong root produces a config that reports clean forever and nobody can tell.
+- **`--schema derive`** drafts a frontmatter schema from what the collection already contains.
+  Fields with few distinct values become enumerated axes; high-cardinality fields become `open`,
+  because enumerating free text produces a schema that fails on nearly every note. The draft is
+  always written `provenance: harvested` and says in the file that it describes what the collection
+  CONTAINS, not what it should. Never `decided`: promoting it silently would make this tool's
+  reading of a collection into that collection's law.
+- **There is no `--register derive`.** Identifiers are your canon; a tool that invents them has
+  decided what they mean.
+- **It never writes content** - no notes, no folders, no naming convention. A tool that invents a
+  structure on day one has chosen the collection's shape before its owner has (ADR-0004).
+- **It ends on a real `doctor --check`,** not a claim of success, and prints every file it wrote
+  plus the env vars that config needs. Configuration nothing reads is the same silent nothing this
+  engine exists to end.
+- **Flags:** `--collection <path>`, `--out <dir>` (default `<collection>/.neurokeeper`),
+  `--non-interactive` for CI, `--schema example|derive|skip`, `--register example|skip`, `--gates`
+  (wire `core.hooksPath`), `--baseline` (accept today's findings so the gate reports net-new),
+  `--dry-run`, `--json`.
+- **Exit codes:** `0` configured, `1` the closing verification failed, `3` collection unreadable.
+
 ### `taxonomy-inventory`
 - **compute x effect:** deterministic x read-only
 - **What it does:** produces an inventory of a notes vault's filename conventions, tags, and frontmatter
@@ -68,6 +96,31 @@ tags:
   The index is cached per note on `(relpath, mtime, size)` **plus the pattern set** at
   `--cache`; `--stats` shows the parsed/cached split and `--refresh` ignores the cache.
 - **Env:** `VAULT_ROOT`, `VAULT_SCAN_EXCLUDE`. **Details:** `docs/engine-vault-correlate.md`.
+
+### `semantic-gaps`
+- **compute x effect:** deterministic x read-only (advisory)
+- **What it does:** answers *which existing notes should link to the one I just wrote?* `ref-audit`
+  asks a structural question - does every link resolve, is anything orphaned. This asks the one that
+  actually costs a collection its value: a new note about a subject the collection already covers,
+  sitting unconnected to the notes covering it. Structurally that collection is perfect. Every link
+  resolves, nothing is orphaned, and the knowledge is still in two halves.
+- **Contract:** `--note <path>` (repeatable) or `--since <git-ref>` to take every note changed since
+  a ref, which is how an agent asks about the work it just did. `--top` (default 5), `--min-score`
+  (default: correlate's `CORRELATED` threshold, so a suggestion rests on real evidence), `--json`.
+- **It reuses `correlate`; it does not re-implement it.** The obvious build - grep each term and rank
+  by overlap count - ranks by how COMMON a word is, so the note sharing "project" and "meeting" with
+  everything outranks the one sharing a single rare identifier. `correlate` already solved that with
+  IDF weighting, a code channel and an anchor floor, so the note itself becomes the item and the
+  existing scorer does the work. A second scorer would be a second set of answers to one question.
+- **Already-linked is excluded in BOTH directions**, outbound and inbound. The gap is symmetric, and
+  an engine that keeps suggesting what you already did teaches you to stop reading it. Links written
+  as a stem, a title or an alias all resolve.
+- **It never writes a link.** Output is a candidate list with its evidence. A wrong link is worse
+  than a missing one: a missing link is a gap someone may still find, a wrong one is an assertion the
+  collection now makes.
+- **Always exits 0**, and is deliberately NOT part of the `doctor` composition. A suggestion engine
+  that can fail a health gate is a suggestion engine that gets the gate switched off.
+- **Env:** `VAULT_ROOT`, `FRONTMATTER_SCHEMA` (optional, same resolution as `correlate`).
 
 ### `ref-audit`
 - **Enforcement scoping (since 2026-08-16):** `--since <ref>`, `--baseline <file>` and `--staged`
@@ -214,9 +267,27 @@ tags:
 - **Four classes:** `wrong-category` (a value the register calls an agreement, declared under the
   request field), `alias` (a non-canonical spelling, invisible to exact matching), `compound` (two
   identifiers packed into one value), `unknown` (an identifier the register has never heard of).
-- **Report-only, deliberately.** Applying a new register to a mature collection produces hundreds of
-  findings on day one, a reader stops at the third stale one, and the check gets switched off.
-  Enforcement is the author-time guard's job, scoped to the lines a change touches.
+- **The report is report-only, deliberately.** Applying a new register to a mature collection
+  produces hundreds of findings on day one, a reader stops at the third stale one, and the check
+  gets switched off. Enforcement is `--guard`'s job.
+- **`--guard <path>`: the author-time guard, scoped to the LINES this change touched.** File-level
+  scoping is too coarse here: edit one line of a document carrying five old findings and all five
+  would be reported as yours. So findings on lines the edit touched are reported in full with their
+  remedy and block; findings elsewhere in the same document collapse to a single count and do not.
+  The backlog stays visible, cannot grow, and nobody answers for it on every save.
+  `--guard-ref <ref>` diffs against something other than `HEAD`. `--verbose` also announces a
+  backlog this edit did not add to (silent by default: a clean edit should say nothing).
+  Only **enforceable** findings block, per the provenance rule below.
+  An **untracked** file is treated as entirely in scope. `git diff` reports a new file as silence
+  rather than as an error, and reading that as "no lines changed" would wave through the whole of
+  the document most likely to be wrong.
+- **`--hook`:** with `--guard`, block with exit `2`, which is what a `PostToolUse` hook requires.
+  Off by default because `2` is also this engine's NOT-CONFIGURED code, and a caller that cannot
+  tell "blocked" from "no register configured" is a coin-flip. Without it a block is exit `1`.
+- **`--staged` / `--since <ref>`:** narrow the whole-collection report to what a change touches, the
+  same enforcement-scoping family `ref-audit` uses and the same shared implementation. Out-of-scope
+  findings are **counted, never discarded** (`pre_existing_out_of_scope`): a backlog nobody can see
+  cannot be worked down, and cannot be shown to be growing.
 - **Provenance is the limit on enforcement** (ADR-0005), not decoration. `decided` entries may be
   enforced and auto-fixed. `harvested` entries may be enforced but never auto-fixed, and the message
   hedges, because a mismatch may mean the REGISTER is wrong rather than the document. `inferred`
@@ -226,7 +297,8 @@ tags:
   `config.example/identifier-register.example.yaml`. Tiers are the collection's own; this tool ships
   no fixed vocabulary, per ADR-0004.
 - **Flags:** `--root <path>` lints another collection, `--check` for the gate, `--json` for a
-  machine consumer.
+  machine consumer, plus `--guard` / `--guard-ref` / `--hook` / `--verbose` / `--staged` / `--since`
+  described above.
 - **Exit codes:** `0` conformant, `1` findings, `2` no register configured, `3` register named and
   unusable. An entry with no `source` is refused rather than assumed decided.
 

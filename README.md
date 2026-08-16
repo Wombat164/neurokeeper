@@ -45,7 +45,7 @@ harness-agnostic **engines** (deterministic scripts) + **prompt templates** + **
 a thin **adapter** binds them to a specific runtime. The Claude Code plugin is *one* adapter: the same
 core works from an MCP server, a plain CLI, or any other LLM harness.
 
-> Status: **0.8.0 (alpha).** Licensed **MIT** (see [`LICENSE`](LICENSE)).
+> Status: **0.9.0 (alpha).** Licensed **MIT** (see [`LICENSE`](LICENSE)).
 
 ## Why
 "Skills" (and plugins, hooks) are runtime-specific and not portable. Putting the real logic in **engines
@@ -89,7 +89,14 @@ uvx neurokeeper --list                                      # zero-install one-s
 pipx install git+https://github.com/Wombat164/neurokeeper   # or track main from GitHub
 pip install -e ".[dev]"                                     # or from a checkout (editable, with test/lint deps)
 ```
-Then run any engine via the dispatcher:
+Then point it at a collection:
+```
+neurokeeper init --collection /path/to/notes --dry-run   # look first: writes nothing
+neurokeeper init --collection /path/to/notes             # writes CONFIG, never content
+```
+`init` states the note count it can see **before** writing anything (check it - a wrong root reports
+clean forever), can derive a frontmatter schema from the vocabulary you already use, and ends by
+running `doctor --check` in front of you instead of claiming success. Or drive the engines directly:
 ```
 neurokeeper <engine> [args]     # e.g.  neurokeeper taxonomy-inventory --json
 neurokeeper --list              # list engines
@@ -153,12 +160,12 @@ The same engines run as a commit/CI gate. neurokeeper ships a `.pre-commit-hooks
 # .pre-commit-config.yaml (in your vault repo)
 repos:
   - repo: https://github.com/Wombat164/neurokeeper
-    rev: v0.8.0
+    rev: v0.9.0
     hooks: [{ id: neurokeeper-doctor }]
 ```
 ```yaml
 # a GitHub workflow step
-- uses: Wombat164/neurokeeper@v0.8.0
+- uses: Wombat164/neurokeeper@v0.9.0
   with: { vault-path: ".", engine: "doctor", strict: "false" }
 ```
 Exit semantics follow [ADR-0002](docs/adr-0002-doctor-exit-semantics.md) (fails on broken `.canvas`/`.base`
