@@ -25,6 +25,8 @@ ENGINES = {
     "memory-consolidate": "memory-consolidate.py",
     "registry-generate":  "registry-generate.py",
     "check-release":      "check-release.py",
+    "vendor-audit":       "vendor-audit.py",
+    "selftest":           "selftest.py",
 }
 
 

@@ -89,3 +89,36 @@ def test_run_receipt_zero_files_is_loud(tmp_path):
     empty = _vault(tmp_path / "empty", {})
     assert json.loads(_run(empty, "--json").stdout)["receipt"]["files_scanned"] == 0
     assert "0 files: check VAULT_ROOT" in _run(empty).stdout
+
+
+# --- issue #30: configured-but-wrong is not the same as not-configured -------------------------
+
+def test_configured_but_missing_memory_store_fails_the_rollup(tmp_path):
+    # The hole this closes: has_mem tested isdir(), so a mistyped or moved store was classified as
+    # "required config not set", skipped, and rolled up OK. The operator HAD configured the check,
+    # it was pointing at nothing, and doctor said everything was fine.
+    v = _vault(tmp_path / "v", {"a.md": "text\n"})
+    states, d, _ = _states(v, CLAUDE_MEMORY_DIR=str(tmp_path / "does-not-exist"))
+    assert states["memory-consolidate"] == "error", states
+    assert "memory-consolidate" in d["failed"]
+
+
+def test_unconfigured_memory_store_still_skips_cleanly(tmp_path):
+    # The NEGATIVE case: not configuring the memory checks is legitimate and must stay a skip,
+    # never an error. Widening the failure must not punish people who never opted in.
+    v = _vault(tmp_path / "v", {"a.md": "text\n"})
+    states, d, rc = _states(v)
+    assert states["memory-consolidate"] == "skipped", states
+    assert "memory-consolidate" not in d["failed"]
+    assert rc == 0
+
+
+def test_configured_and_present_memory_store_runs(tmp_path):
+    # And the ordinary path still works: a real store is audited, not skipped.
+    v = _vault(tmp_path / "v", {"a.md": "text\n"})
+    store = tmp_path / "mem"
+    store.mkdir()
+    (store / "MEMORY.md").write_text("# index\n- [a](a.md) - x\n", encoding="utf-8")
+    (store / "a.md").write_text("body\n", encoding="utf-8")
+    states, _, _ = _states(v, CLAUDE_MEMORY_DIR=str(store))
+    assert states["memory-consolidate"] == "ok", states

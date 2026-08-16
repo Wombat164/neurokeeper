@@ -1,0 +1,37 @@
+{
+  "engine": "memory-consolidate.py",
+  "args": [
+    "--json"
+  ],
+  "env": {
+    "CLAUDE_MEMORY_DIR": "{vault}"
+  },
+  "unset_env": [
+    "VAULT_ROOT",
+    "VAULT_INBOX_DIR"
+  ],
+  "must_detect": [
+    {
+      "why": "an index entry pointing at a file that is not there",
+      "path": "broken_links",
+      "contains": "gone.md"
+    },
+    {
+      "why": "a memory file the index never references",
+      "path": "orphans",
+      "contains": "unindexed.md"
+    }
+  ],
+  "must_not_detect": [
+    {
+      "why": "an index entry whose target exists is not a broken link",
+      "path": "broken_links",
+      "absent": "kept.md"
+    },
+    {
+      "why": "a file the index references is not an orphan",
+      "path": "orphans",
+      "absent": "kept.md"
+    }
+  ]
+}

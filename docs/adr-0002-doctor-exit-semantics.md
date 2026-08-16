@@ -48,3 +48,33 @@ is unset. Running it anyway in `doctor` would flood a consumer with false off-vo
   knowing exactly what green means, and pass `--strict` when a stricter vault wants unresolved links to fail.
 - The report surfaces *everything* (advisory counts, skips, fails) for human review; the **exit code** is
   the narrow, honest subset that is safe to automate on.
+
+## Amendment (2026-08-16): "not configured" and "configured wrongly" are different states
+
+Decision 1 said `skipped` means "the engine's required config is not set". It was implemented by
+asking whether the configured path *resolved*, which quietly folded a third state into the first: a
+store that was named and could not be reached was reported as "required config not set", skipped,
+and rolled up OK. The operator had turned the check on. It was pointing at nothing. `doctor` said
+everything was fine.
+
+That is the false-assurance trap this ADR exists to close, arriving through the config test rather
+than through the engines.
+
+The applicability test is now presence, not resolution: **if a config value was supplied at all, run
+the engine and let it speak.** Engines gained a third exit code so they can say which state they
+are in:
+
+| exit | meaning | `doctor` state |
+|---|---|---|
+| 0 | reached the subject (an empty subject is still reached) | `ok` |
+| 1 | a real gate failed | `fail`, for gating engines |
+| 2 | NOT CONFIGURED: nothing was asked of the engine | `skipped` |
+| 3 | UNREACHABLE: configured, and the subject could not be read | `error`, fails the roll-up |
+
+The 2/3 split is the point. Exit 2 stays a skip because declining to configure a check is
+legitimate. Exit 3 is a defect, because an engine that could not reach its subject has no answer to
+give, and reporting one anyway is worse than reporting nothing.
+
+The general invariant, which applies well beyond `doctor`: **an engine that could not reach its
+subject must not return the same signal as one that reached it and found nothing.** A scan whose
+root does not exist reports zero findings, and zero findings reads as clean.

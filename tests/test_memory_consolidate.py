@@ -149,6 +149,95 @@ def test_candidates_detects_merge_and_contradiction(tmp_path):
     d = json.loads(r.stdout)
     merges = {frozenset((c["a"], c["b"])) for c in d["merge_candidates"]}
     assert frozenset(("feedback-cloud-taxonomy-v1.md", "feedback-cloud-taxonomy-v2.md")) in merges  # stem overlap
-    assert frozenset(("reference-alpha.md", "reference-beta.md")) in merges                          # same session
+    # issue #31: co-session ALONE no longer qualifies. These two share a session id and nothing
+    # else, which means they share a clock, not a subject.
+    assert frozenset(("reference-alpha.md", "reference-beta.md")) not in merges
+    assert d["suppressed"]["cosession_only"] >= 1
     assert any({c["a"], c["b"]} == {"feedback-indent-tabs.md", "feedback-indent-spaces.md"}
                and "always/never" in c["opposite_stances"] for c in d["contradiction_candidates"])
+
+
+# --- issue #30: an unreachable store must not report like an empty one -------------------------
+
+def _run_at(path, *args):
+    """Invoke the engine pointed at `path`, which may not exist."""
+    env = dict(os.environ, CLAUDE_MEMORY_DIR=str(path))
+    return subprocess.run([sys.executable, ENGINE, *args], capture_output=True, text=True, env=env)
+
+
+def test_missing_store_exits_nonzero_in_every_mode(tmp_path):
+    # The point of the issue: a path that does not resolve is an ERROR, not a clean empty result.
+    # It used to exit 0, and --terse feeds a SessionStart hook that stays silent on a zero exit, so
+    # a moved or mistyped store produced a permanently healthy-looking session.
+    missing = tmp_path / "nope" / "not-here"
+    for mode in ("--check", "--terse", "--json", "--lint", "--candidates"):
+        r = _run_at(missing, mode)
+        assert r.returncode != 0, f"{mode} exited 0 for a store that does not exist"
+        assert "not found" in r.stderr.lower(), f"{mode} said nothing on stderr: {r.stderr!r}"
+
+
+def test_missing_store_names_the_source_of_the_path(tmp_path):
+    # The operator's next action differs depending on whether they set the variable or inherited
+    # the default, so the message has to say which one supplied the path.
+    r = _run_at(tmp_path / "nope", "--check")
+    assert "CLAUDE_MEMORY_DIR" in r.stderr
+
+
+def test_empty_but_existing_store_still_exits_zero(tmp_path):
+    # The NEGATIVE case, and the one that decides whether the change is safe: a real store with
+    # nothing in it is a legitimate new collection. Widening the error must not swallow it.
+    empty = tmp_path / "memory"
+    empty.mkdir()
+    for mode in ("--check", "--terse"):
+        r = _run_at(empty, mode)
+        assert r.returncode == 0, f"{mode} treated an existing EMPTY store as an error: {r.stderr!r}"
+
+
+def test_populated_store_is_unaffected(tmp_path):
+    # Guards against the new check firing on the ordinary path.
+    store = _store(tmp_path, {"MEMORY.md": "# index\n- [a](a.md) - x\n", "a.md": "body\n"})
+    r = _run(store, "--check")
+    assert r.returncode == 0, r.stderr
+
+
+# --- issue #31: co-session is a tiebreaker, not evidence ---------------------------------------
+
+def _sess(name, sid, body="text\n"):
+    return {name: f"---\nmetadata:\n  originSessionId: {sid}\n---\n{body}"}
+
+
+def test_cosession_alone_is_suppressed_and_counted(tmp_path):
+    # A busy session writes many unrelated memories. Admitting co-session alone made the candidate
+    # count quadratic in the size of that session: on a real store, 1806 of 1846 pairs (98%) had no
+    # topical relationship whatsoever.
+    files = {}
+    for n in ("alpha", "bravo", "charlie", "delta"):
+        files.update(_sess(f"reference-{n}.md", "sess-SAME"))
+    files["MEMORY.md"] = "# index\n"
+    d = _json(_store(tmp_path, files), "--candidates")
+    assert d["merge_candidates"] == [], d["merge_candidates"]
+    # 4 notes pairwise = 6 pairs, all co-session-only
+    assert d["suppressed"]["cosession_only"] == 6, d["suppressed"]
+
+
+def test_cosession_still_rides_along_when_content_agrees(tmp_path):
+    # It is a tiebreaker, not banned: when a pair ALREADY overlaps on content, the shared session
+    # is real corroboration and must survive on the finding.
+    files = {"MEMORY.md": "# index\n"}
+    files.update(_sess("feedback-cloud-taxonomy-v1.md", "sess-SAME"))
+    files.update(_sess("feedback-cloud-taxonomy-v2.md", "sess-SAME"))
+    d = _json(_store(tmp_path, files), "--candidates")
+    assert len(d["merge_candidates"]) == 1, d["merge_candidates"]
+    sig = d["merge_candidates"][0]["signals"]
+    assert "stem_overlap" in sig and "same_session" in sig, sig
+
+
+def test_suppression_is_reported_not_silent(tmp_path):
+    # A silent cap reads as "nothing more to find", which is what makes a narrowing filter
+    # dangerous rather than merely noisy. The rule has to travel with the count.
+    files = {"MEMORY.md": "# index\n"}
+    files.update(_sess("reference-alpha.md", "sess-X"))
+    files.update(_sess("reference-beta.md", "sess-X"))
+    d = _json(_store(tmp_path, files), "--candidates")
+    assert d["suppressed"]["cosession_only"] == 1
+    assert "tiebreaker" in d["suppressed"]["rule"]
