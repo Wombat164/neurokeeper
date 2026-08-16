@@ -37,7 +37,7 @@ tags:
   shared codes (40), a title or alias appearing verbatim in the item (35), IDF-weighted token overlap
   (up to 25), a participant resolving to a person the note names (20), and shared tags (10), then
   returns the top candidates with their evidence.
-- **States:** `anchored` (>=70) | `correlated` (40-69) | `ambiguous` | `topic-known` | `new`.
+- **States:** `anchored` (>=70) | `correlated` (40-69) | `weak` (40+ but no single signal >=30) | `ambiguous` | `topic-known` | `new`.
 - **The anchor floor:** no signal below 30 may anchor on its own. A pile of weak token hits is capped
   at 69 and says so in its evidence - unbounded substring matching is how a correlator starts
   confidently attaching items to the wrong note.
@@ -59,7 +59,13 @@ tags:
 - **Contract:** JSON on stdin (or `--item-file`), JSON on stdout. `--top` sets how many candidates
   each item returns (default 3); `--include` limits the scan to given relative dirs (repeatable,
   overrides the config); `--config` supplies the `vault:` section (include + frontmatter map);
-  `--vault` selects the vault root. The index is cached per note on `(relpath, mtime, size)` at
+  `--vault` selects the vault root; `--register` supplies a YAML carrying `identifier_patterns` --
+  record-number shapes (orders, tickets, stock numbers) matched in BOTH the item's text and each
+  note's text, so neither side has to declare anything in frontmatter. `--list-records` dumps that
+  index instead of correlating (`--pattern` limits it to one), which is the supported way to answer
+  "where does this number appear": it reads the same index the matching uses, so a search and a
+  match cannot disagree.
+  The index is cached per note on `(relpath, mtime, size)` **plus the pattern set** at
   `--cache`; `--stats` shows the parsed/cached split and `--refresh` ignores the cache.
 - **Env:** `VAULT_ROOT`, `VAULT_SCAN_EXCLUDE`. **Details:** `docs/engine-vault-correlate.md`.
 
@@ -411,6 +417,34 @@ tags:
 - **Contract:** `--json`, `--write` (writes the registry doc; prints to stdout otherwise).
 - **Env:** `HARNESS_ROOT` (defaults to the repo root).
 
+### `egress-gate`
+- **compute x effect:** deterministic x read-only
+- **What it does:** scans what a push, publish or paste would disclose, **before** it leaves the
+  machine. Complements the gitleaks pre-push guard rather than replacing it: gitleaks matches raw
+  bytes and owns secrets plus the author-identity allowlist, this folds NL/FR/EN diacritics and owns
+  vocabulary, so a term list written in ASCII still matches accented prose. Scans non-git surfaces
+  too (staged changes, a tracked tree, ad-hoc text). In `--push-stdin` it reads git's pre-push refs
+  and covers the whole outgoing range: commit **messages**, **patches** and author **identities**,
+  because history is egress - a term deleted in a later commit still ships in the objects the push
+  transfers. Term sources may be plaintext (literal + `regex:`) or **hashed** (one sha256 per
+  lowercase folded word-token), the latter so a PUBLIC repo can carry its own gate without the gate
+  disclosing what it guards; hashed matches report `<redacted>` and never echo the term.
+- **Fails closed.** No loadable term source, or a failed git call, exits `2` and means BLOCKED. A
+  gate that could not scan must never report clean.
+- **Contract:** `--staged`, `--push-stdin`, `--range`, `--tree`, `--file`, `--text`, `--stdin`,
+  `--json`, `--baseline` (accepted-finding fingerprints; new findings still block),
+  `--print-fingerprints`, `--emit-hashes` (derive a public hashed list from a private plaintext one;
+  drops multiword and short terms and reports how many, so the weakening is visible).
+- **Exit:** `0` clean, `1` findings at block severity, `2` environment error (also BLOCKED).
+- **Env:** `EGRESS_GATE_CONFIG` (config path), `EGRESS_DENYLIST` (a term-source path).
+- **Config:** `config.example/egress-gate.example.yaml` - sources, caps, severities, per-mode
+  behaviour and baseline path. The fold table and the match loop stay in code on purpose: a
+  misconfigured fold silently weakens the gate while still reporting clean.
+- **Hooks:** `bootstrap/install-hooks.sh` wires pre-commit and pre-push via `core.hooksPath`.
+  Pre-commit arms only in a repo that has a public remote (override with
+  `git config neurokeeper.egressGate.precommit always|never`), so a private repo whose purpose is
+  to hold sensitive content is not blocked on every commit.
+
 > [!info] Shared internals (not dispatcher subcommands)
 > Two helper modules are imported by the engines rather than run directly: a **shared library**
 > (vault walk, frontmatter split, slug helpers - one definition, imported everywhere) and a
@@ -437,6 +471,7 @@ discoverable the moment it has a header.
 # @audit:        dream-log             # none | git | dream-log
 # @status:       active                # active | experimental | deprecated
 # @doc:          path/to/design.md     # the design/runbook
+# @doctor:       gate                  # gate | advisory | no   (external engines; opt-in)
 ```
 
 Field meanings:
@@ -454,6 +489,7 @@ Field meanings:
 | `@audit` | Audit substrate: `none`, `git`, or a hash-chained `dream-log`. |
 | `@status` | Lifecycle state. |
 | `@doc` | The design/runbook for the capability. |
+| `@doctor` | For engines loaded from `NEUROKEEPER_ENGINE_PATH`: whether `doctor` composes this engine, and whether it may fail the roll-up. `gate` may fail it, `advisory` reports only, absent or `no` means `doctor` ignores the engine. Participation is opt-in because being dispatchable must not mean "run this whenever someone asks about the health of my collection". An unrecognised value is refused rather than guessed at, since this field decides whether a failure is allowed to be invisible. |
 
 ---
 
@@ -474,6 +510,7 @@ ships with the repo; the harness ships schemas and examples only, never real con
 | `CLAUDE_MEMORY_DIR` | `memory-consolidate` | Path to the file-based memory store. |
 | `VAULT_INBOX_DIR` | `memory-consolidate` | Optional - enables an inbox-pressure metric. |
 | `HARNESS_ROOT` | `registry-generate` | Root to scan for metadata headers (defaults to the repo root). |
+| `NEUROKEEPER_ENGINE_PATH` | the dispatcher, `doctor` | Optional. `PATH`-style list of directories holding engines that live outside this repository, so a domain-specific capability can stay in its owner's repo and still run as `neurokeeper <name>`. Only files carrying an `@capability` header register. A name that collides with a built-in is refused rather than resolved either way, and a directory on the list that does not exist is a hard error rather than a skip: continuing would report those engines as absent rather than as misconfigured. See [[how-to/extend-with-your-own-engine|Extend with your own engine]]. |
 
 ### Schema-as-code (the frontmatter engines)
 

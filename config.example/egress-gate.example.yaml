@@ -1,0 +1,85 @@
+# egress-gate configuration (example).
+#
+# Copy to <repo>/.egress-gate.yaml, or point $EGRESS_GATE_CONFIG at it.
+# Discovery order: $EGRESS_GATE_CONFIG -> <repo>/.egress-gate.yaml -> built-in defaults.
+#
+# WHAT IS CONFIGURABLE, AND WHAT DELIBERATELY IS NOT.
+# Configurable: term-list locations, per-mode behaviour, caps, severities, baseline path.
+# Not configurable: the diacritic fold table, word-boundary policy, and the match loop. Those
+# are engine behaviour. A misconfigured fold silently weakens the gate while still reporting
+# "clean", which is the worst failure mode a security control can have, so it stays in code
+# where it is covered by tests rather than in YAML where it is covered by hope.
+
+version: 1
+
+# ---------------------------------------------------------------------------- term sources
+#
+# Every source that resolves and exists is loaded; duplicates (same resolved path) load once.
+# `kind: text`   one term per line; bare = literal, `regex:` prefix = regular expression.
+#                Write literals UNACCENTED: the engine folds NL/FR diacritics on both sides,
+#                so "credit de liquidation" matches "crédit de liquidation" and the file
+#                stays ASCII. Regex entries are matched against folded text, so they must be
+#                written in ASCII too (folding an expression would corrupt its metacharacters).
+# `kind: hashes` one sha256 of a lowercase folded word-token per line. Use this when the repo
+#                holding the list is PUBLIC: it lets a repo carry its own gate without the
+#                gate becoming the disclosure. Matches are reported as <redacted>, never echoed.
+#
+# `relative_to: repo` resolves against the git top-level; omit for an absolute path or an
+# ${ENV_VAR} expansion. `required: true` makes a missing file a hard error rather than a skip.
+
+sources:
+  - path: ${EGRESS_DENYLIST}
+    kind: text
+    required: false
+  - path: tools/lexicon.deny.txt
+    relative_to: repo
+    kind: text
+    required: false
+  - path: tools/lexicon.deny.hashes
+    relative_to: repo
+    kind: hashes
+    required: false
+
+# Fail closed. With this true (the default, and it should stay true) the engine BLOCKS when no
+# source could be loaded, rather than reporting a clean scan it never actually performed.
+require_at_least_one_source: true
+
+# ---------------------------------------------------------------------------------- limits
+limits:
+  # Findings reported per unit before the rest are summarised. A gate that dumps whole files
+  # burns context on every run and gets muted, and a muted gate catches nothing.
+  max_findings_per_unit: 5
+  # Blobs larger than this are skipped, as are binaries. Keep generous: a skipped blob is an
+  # unscanned blob, and this is a ceiling against pathological inputs, not a tuning knob.
+  max_blob_bytes: 2000000
+
+# -------------------------------------------------------------------------------- severity
+# block = non-zero exit, the caller (hook or CI) stops the operation.
+# warn  = reported, exit stays 0. Use sparingly; a warn-only term list trains people to scroll past.
+severity:
+  default: block
+  # Per-source override, keyed by the source path as written above.
+  by_source: {}
+
+# ----------------------------------------------------------------------------------- modes
+modes:
+  staged:
+    enabled: true
+    scan_commit_message: true
+  push:
+    enabled: true
+    # History is egress. A term deleted in a later commit still ships in the objects the push
+    # transfers, so patches are scanned in full rather than only the resulting tree.
+    scan_commit_messages: true
+    scan_patches: true
+    # Author and committer identity is content too, and a content scanner never sees it.
+    scan_identities: true
+  tree:
+    enabled: true
+
+# -------------------------------------------------------------------------------- baseline
+# Accepted findings, one fingerprint per line. New findings still block. Generate with
+# `--print-fingerprints`. Baseline a finding only when it is a genuine false positive; the
+# wrong fix is to weaken a term.
+baseline:
+  path: .egress-gate-baseline

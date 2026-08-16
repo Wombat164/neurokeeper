@@ -1,5 +1,6 @@
 ---
 note_type: project
+owner: ada.lovelace
 status: active
 maturity: current
 horizon: near

@@ -1,0 +1,65 @@
+{
+  "_comment": [
+    "Custody manifest (example). Copy, edit, and point CUSTODY_MANIFEST at it.",
+    "",
+    "Declares what this collection considers ITS OWN, so custody-audit can ask four questions and",
+    "nothing more: is each artifact tracked or deliberately ignored with a stated disposition; is the",
+    "encrypted counterpart current and committed; is HEAD on a declared remote; is this the canonical",
+    "working copy. Every other engine validates CONTENT and passes whether or not that content has",
+    "ever been committed, pushed or backed up.",
+    "",
+    "JSON rather than YAML only because it is read by tooling more often than by people. Comments",
+    "live in _comment keys, which the engine ignores."
+  ],
+
+  "artifacts": [
+    {
+      "path": "docs/",
+      "disposition": "tracked",
+      "_comment": "The ordinary case. A finding here means git does not carry something you believe it does."
+    },
+    {
+      "path": ".cache/",
+      "disposition": "ignored-ephemeral",
+      "_comment": "Deliberately disposable. Declaring it is what distinguishes 'ignored on purpose' from the silent gap: untracked-and-unignored, which nothing else reports."
+    },
+    {
+      "path": "config/secrets.yaml",
+      "disposition": "ignored-encrypted",
+      "encrypted_counterpart": "config/secrets.yaml.age",
+      "_comment": [
+        "The interesting row. 'Sensitive file gitignored, sanitised example committed beside it' is",
+        "CORRECT practice that nothing enforces, and the example sitting next to the gap is exactly",
+        "what makes a missing counterpart invisible.",
+        "",
+        "Three ways this fails, all reported: no counterpart at all; a counterpart OLDER than the file",
+        "it backs up, which is not a backup; a counterpart that exists and was never committed, which",
+        "protects against nothing beyond this disk."
+      ]
+    }
+  ],
+
+  "remotes": ["origin"],
+  "_comment_remotes": [
+    "ABSENT means assume origin. An explicitly EMPTY list means no remote is declared and the",
+    "question is not asked. Those are different states and collapsing them made a manifest that",
+    "deliberately declares no remote report a missing one."
+  ],
+
+  "canonical_root": "/absolute/path/to/this/collection",
+  "_comment_canonical": [
+    "Where this collection is supposed to live. The marker travels WITH a copy, which is what lets a",
+    "copy report that it is one: a rollback copy is complete, valid, passes every content check, and",
+    "is indistinguishable from the original in an editor. Work done in it commits cleanly and is",
+    "stranded. Omit the key entirely if you keep only one copy."
+  ],
+
+  "receipts": [
+    {
+      "name": "nightly-backup",
+      "path": ".receipts/backup.json",
+      "max_age_hours": 36,
+      "_comment": "Scheduled work reports by WRITING a receipt; this engine checks its freshness and never inspects systemd, cron or Task Scheduler. Three platforms, three failure modes, no determinism. It also avoids a job that reports failed every night while the half that matters succeeds, since a permanently red signal is indistinguishable from a real one."
+    }
+  ]
+}

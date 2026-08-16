@@ -45,7 +45,7 @@ harness-agnostic **engines** (deterministic scripts) + **prompt templates** + **
 a thin **adapter** binds them to a specific runtime. The Claude Code plugin is *one* adapter: the same
 core works from an MCP server, a plain CLI, or any other LLM harness.
 
-> Status: **0.7.0 (alpha).** Licensed **MIT** (see [`LICENSE`](LICENSE)).
+> Status: **0.8.0 (alpha).** Licensed **MIT** (see [`LICENSE`](LICENSE)).
 
 ## Why
 "Skills" (and plugins, hooks) are runtime-specific and not portable. Putting the real logic in **engines
@@ -97,6 +97,23 @@ neurokeeper --list              # list engines
 Either way, set `CLAUDE_MEMORY_DIR` (and optional `VAULT_*`) per `config.example/`. The same engines back
 all three faces (plugin / CLI / direct `python scripts/<engine>.py`) - one codebase, no fork.
 
+## Bring your own engine
+The core deliberately refuses domain-specific content, which would leave "get it merged upstream" as the
+only route for a check that encodes *your* vocabulary, your org's fields, or your team's policy. So it
+isn't the only route. Point `NEUROKEEPER_ENGINE_PATH` at a directory in **your** repository and your
+engine is a first-class command, sharing the dispatcher, the stable helper surface (`neurokeeper.lib`,
+so nobody re-implements the frontmatter parse), the exit contract, and - if it opts in with a
+`@doctor:` header - the aggregate health roll-up.
+```bash
+export NEUROKEEPER_ENGINE_PATH="/path/to/your-repo/engines"
+neurokeeper acme-owner-audit --check      # your engine, your repo, your release cycle
+```
+A name colliding with a built-in is refused rather than silently preferred either way, and a directory
+on the list that does not exist is a hard error: reporting your engines as *absent* when they are merely
+*misconfigured* is the failure this tool exists to not commit.
+Full contract, worked example, and the decide-where-it-belongs test:
+[Extend with your own engine](https://wombat164.github.io/neurokeeper/how-to/extend-with-your-own-engine/).
+
 ## First capability: `memory-audit`
 A file-based-memory health check + consolidation: deterministic engine
 (`scripts/memory-consolidate.py` - 5-metric score, orphans, broken-links, importance curve,
@@ -136,12 +153,12 @@ The same engines run as a commit/CI gate. neurokeeper ships a `.pre-commit-hooks
 # .pre-commit-config.yaml (in your vault repo)
 repos:
   - repo: https://github.com/Wombat164/neurokeeper
-    rev: v0.7.0
+    rev: v0.8.0
     hooks: [{ id: neurokeeper-doctor }]
 ```
 ```yaml
 # a GitHub workflow step
-- uses: Wombat164/neurokeeper@v0.7.0
+- uses: Wombat164/neurokeeper@v0.8.0
   with: { vault-path: ".", engine: "doctor", strict: "false" }
 ```
 Exit semantics follow [ADR-0002](docs/adr-0002-doctor-exit-semantics.md) (fails on broken `.canvas`/`.base`

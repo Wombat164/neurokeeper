@@ -24,3 +24,30 @@ jobs:
         env:
           VAULT_ROOT: examples/vault
         run: neurokeeper doctor --check
+
+      # The plugin seam, proven rather than described. examples/engines/ stands in for an engine
+      # living in somebody else's repository: it dispatches through the CLI, and because it carries
+      # an '@doctor: gate' header it also joins the aggregate roll-up.
+      - name: an external engine dispatches and joins the roll-up
+        env:
+          VAULT_ROOT: examples/vault
+          NEUROKEEPER_ENGINE_PATH: examples/engines
+          OWNER_ROSTER: examples/engines/roster.txt
+        run: |
+          neurokeeper --list | grep -q 'acme-owner-audit'
+          neurokeeper acme-owner-audit --check
+          neurokeeper doctor --check --json \
+            | python -c "import json,sys; e={x['engine']:x for x in json.load(sys.stdin)['engines']}['acme-owner-audit']; assert e['origin']=='external' and e['state']=='ok', e; print('composed:', e)"
+
+      # The other half of the claim: the gate must FAIL when there is something to fail on. A
+      # detector only ever observed passing is not known to detect anything.
+      - name: and it actually fails when an owner is off-roster
+        env:
+          VAULT_ROOT: examples/vault
+          NEUROKEEPER_ENGINE_PATH: examples/engines
+          OWNER_ROSTER: /tmp/short-roster.txt
+        run: |
+          grep -v '^grace.hopper' examples/engines/roster.txt > /tmp/short-roster.txt
+          if neurokeeper acme-owner-audit --check; then
+            echo "::error::the external engine exited 0 with an off-roster owner present"; exit 1
+          fi

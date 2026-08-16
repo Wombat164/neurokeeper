@@ -27,9 +27,10 @@ Only `title` is really required. Everything else sharpens the result.
 
 ```json
 {"vault": "...", "index": {"notes": 1660, "parsed": 12, "cached": 1648},
- "items": [{"id": "42", "state": "anchored", "score": 75, "capped": false,
+ "items": [{"id": "42", "state": "anchored", "score": 75, "capped": false, "weak": false,
             "candidates": [{"note": "02 - Projects/widget-programme.md", "score": 75,
-                            "evidence": ["code PROJ-1", "phrase 'widget programme'"]}]}]}
+                            "evidence": ["code PROJ-1 (declared)",
+                                         "phrase 'widget programme'"]}]}]}
 ```
 
 ## States
@@ -38,6 +39,7 @@ Only `title` is really required. Everything else sharpens the result.
 |---|---|
 | `anchored` | >= 70 on one note. The vault already covers this. |
 | `correlated` | 40-69. Right neighbourhood; the candidate list is the useful part. |
+| `weak` | Reached 40+, but **every** contributing signal was individually below 30. Treat as unproven, not as a neighbourhood. |
 | `ambiguous` | Top two candidates are close **and** point at genuinely different subjects. |
 | `topic-known` | A code matched, but no note reached 40. |
 | `new` | Below 40, no code. The vault has not seen this. |
@@ -51,16 +53,43 @@ everything in a real vault reads as ambiguous, which is the same as flagging not
 
 | Signal | Points |
 |---|---|
-| Shared code (`contract`, `project`, `programme`, ...) | 40 |
-| A note's title or alias appearing verbatim in the item | 35 |
+| Code **declared** in a code-ish key (`contract`, `project`, `programme`, ...) | 40 |
+| A note's title or alias appearing verbatim in the item | 35 for the first, **40 for the whole channel** |
+| Code carried only by the note's title, alias or filename | 28 |
 | IDF-weighted token overlap against title + aliases | up to 25 |
-| A participant resolving to a person the note names | 20 |
+| Participants resolving to people the note names | 20 for the first, **25 for the whole channel** |
 | A shared tag | 10 |
 
+**Declared vs worn codes.** Plenty of notes carry their programme or dossier name in the title and
+filename and never declare it in a code field. Matching those is what stops the correct note falling
+out of the candidate list entirely. It scores lower than a declared code because a filename token can
+be incidental, and the two cases are labelled distinguishably in the evidence: `code X (declared)`
+against `code X (title)`. 28 is chosen to sit below the 30 anchor floor (so a worn code can never
+anchor by itself) and above the entire person channel (so the right note stops losing to shared
+participants). Both sides of a code comparison are normalised, so `PROJ-1`, `PROJ_1` and `proj 1`
+compare equal.
+
+**The phrase ceiling.** An alias is another name for the *same* note, so a second alias matching is
+not independent corroboration; it is one signal counted twice. Two matching names used to score 70
+and anchor outright, and because each hit is worth more than the 30 floor, neither the floor rule nor
+`weak` could catch it. Two suppressions now apply: a name wholly contained in a longer matching name
+of the same note (`widget prog` inside `widget programme`) scores nothing, and whatever survives
+shares one budget. A verbatim title match therefore ranks the note first but reaches `anchored` only
+with corroboration from a genuinely different channel, which is what `anchored` ought to mean.
+
+**The person ceiling.** In a small organisation the same participants recur across most notes, so
+participant overlap barely discriminates between them. Left additive it stacks: five shared names on
+an otherwise unrelated note used to out-score a real topical match. The channel therefore has one
+budget per note. Participants may reinforce a topical match; they cannot carry one. Names past the
+budget still appear as evidence but add nothing.
+
 **The anchor floor.** No signal below 30 may produce an `anchored` verdict on its own. A pile of weak
-token hits gets capped at 69 with `capped: true` and an evidence line saying so. Filename-substring
-matching without this rule is exactly how a correlator starts confidently attaching items to the
-wrong note.
+token hits gets capped at 69 with `capped: true` and an evidence line saying so, and the state
+becomes `weak` rather than `correlated`/`anchored`. Filename-substring matching without this rule is
+exactly how a correlator starts confidently attaching items to the wrong note. The floor changes the
+verdict rather than only annotating it because a false `correlated` is worse than a `new`: `new`
+sends the reader to go and look, while `correlated` hands them three wrong candidates and an
+invitation to stop looking.
 
 **Why IDF.** A token appearing in 200 note titles carries almost no information; a rare one is nearly
 decisive. Raw token counting treats them identically, which is the classic failure of this kind of
