@@ -245,8 +245,11 @@ def compile_patterns(raw):
         floor = int(spec.get("min_digits", 0)) if isinstance(spec, dict) else 0
         try:
             out[name] = (re.compile(pat), floor)
-        except re.error as exc:  # noqa: PERF203 - one bad pattern must not sink the rest
-            print(f"WARN: identifier_patterns.{name}: bad regex ({exc}); skipped", file=sys.stderr)
+        # TypeError as well as re.error: a spec whose key is misspelled (`regex:` instead of
+        # `match:`) leaves pat = None, and re.compile raises TypeError, which is not a re.error.
+        # The docstring promises one bad pattern does not sink the rest, and it did.
+        except (re.error, TypeError) as exc:  # noqa: PERF203 - one bad pattern must not sink the rest
+            print(f"WARN: identifier_patterns.{name}: unusable ({exc}); skipped", file=sys.stderr)
     return out
 
 
@@ -744,7 +747,11 @@ def main(argv=None):
     if args.include:
         include = args.include
 
-    _patterns = load_register(args.register)
+    # The flag wins, but the env var is the documented config channel and the rest of this engine
+    # already honours it (see the register load below). Reading it in only one of the two places
+    # meant a correctly-configured site got record-number scoring during correlation and an error
+    # from --list-records, which reads as "my register is broken" rather than "pass it twice".
+    _patterns = load_register(args.register or os.environ.get("IDENTIFIER_REGISTER"))
     idx, stats = load_index(args.vault, include, fm_map, args.cache, refresh=args.refresh,
                             patterns=_patterns)
     if args.stats:

@@ -27,7 +27,7 @@ In your vault repo's `.pre-commit-config.yaml`:
 ```yaml
 repos:
   - repo: https://github.com/Wombat164/neurokeeper
-    rev: v0.11.1
+    rev: v0.11.2
     hooks:
       - id: neurokeeper-doctor        # aggregate health gate (recommended)
       # - id: neurokeeper-ref-audit   # or just reference integrity
@@ -49,7 +49,7 @@ jobs:
       - uses: DavidAnson/markdownlint-cli2-action@v16
       - uses: lycheeverse/lychee-action@v2
       # the vault-graph-aware gate neurokeeper uniquely provides:
-      - uses: Wombat164/neurokeeper@v0.11.1
+      - uses: Wombat164/neurokeeper@v0.11.2
         with:
           vault-path: "."
           engine: "doctor"          # or "ref-audit"

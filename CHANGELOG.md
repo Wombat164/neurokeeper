@@ -6,6 +6,44 @@ Full per-release notes: https://github.com/Wombat164/neurokeeper/releases
 
 ## [Unreleased]
 
+## [0.11.2] - 2026-08-17
+
+Three correctness fixes, all found by RUNNING the engines against a real collection rather than by
+reading them. Two of the three were caught because an output contradicted itself or contradicted the
+docstring above it.
+
+### Fixed
+- **`ref-audit`: a version number at the end of a note name was treated as a file extension.**
+  `os.path.splitext` splits at the last dot unconditionally, so `SPF V9.0` yields ext `.0`, and the
+  guard deciding whether that is really an extension accepted any alphanumeric run of 1-8
+  characters. Every link to a note whose name ENDS in a version resolved to nothing.
+
+  It was found the way this class should be found: the report contradicted itself. One note was
+  listed as an orphan (no inbound links) AND as the target of 22 broken links, in the same run.
+
+  An earlier fix targeted this same class but only covered a dot in the MIDDLE of a name, which the
+  length bound already caught. The docstring above the guard claimed the case was handled.
+
+  The rule is now "alphanumeric AND not purely numeric", not the tempting "must begin with a
+  letter": `.7z` and `.3gp` are real extensions. The collection where this surfaced has no
+  digit-leading extensions, so the easy fix would have looked correct there and quietly broken
+  someone else's vault. Measured on that collection: broken links 2988 -> 2940, orphans 1666 ->
+  1659.
+
+- **`correlate --list-records` ignored `IDENTIFIER_REGISTER`.** The rest of the engine honours it;
+  the index dump accepted only `--register` and errored when the env var alone was set. A correctly
+  configured site therefore got record-number scoring during correlation and "needs --register with
+  `identifier_patterns`" from the dump, which reads as "my register is broken" rather than "pass it
+  twice". The flag still wins where both are given, and an unconfigured run still REFUSES rather
+  than printing an empty index: "0 record identifiers" and "this collection has none" must not look
+  alike.
+
+- **`compile_patterns` promised bad entries were skipped and crashed on one.** It caught `re.error`
+  only. A spec with a misspelled key leaves the pattern `None`, and `re.compile(None)` raises
+  `TypeError`, so a single typo'd entry sank the whole run. Found by making that exact typo in a
+  test fixture. The skipped entry is now named in the warning, because an unnamed skip is a silent
+  loss.
+
 ## [0.11.1] - 2026-08-17
 
 ### Fixed

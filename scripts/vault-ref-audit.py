@@ -241,9 +241,18 @@ def main():
         notes_by_stem, so EVERY link to a dotted note name resolved to nothing: the note showed up as
         an orphan while dozens of real inbound links were reported broken. Version numbers and
         programme codes make dotted names common, so this was not an edge case.
+
+        A PURELY NUMERIC segment is a version number, never a file extension. The first fix here
+        only rescued a dot in the MIDDLE of a name, so a name ENDING in a version -- 'SPF V9.0',
+        'netlayout v0.3' -- still had that version stripped as an extension and could never resolve.
+        The note then reported as an orphan while every real inbound link reported broken, in the
+        same run: two contradictory findings that are each other's disproof.
+
+        Not "the extension must start with a letter", which is the easy fix and wrong: `.7z` and
+        `.3gp` are real extensions.
         """
         stem, ext = os.path.splitext(base)
-        if not re.fullmatch(r"\.[A-Za-z0-9]{1,8}", ext or ""):
+        if not re.fullmatch(r"\.[A-Za-z0-9]{1,8}", ext or "") or re.fullmatch(r"\.\d+", ext or ""):
             return base, ""                  # not an extension -- the dot belongs to the name
         return stem, ext
 
