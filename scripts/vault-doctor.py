@@ -112,6 +112,10 @@ def main():
     # it speak (it exits 3 for a configured store it cannot reach).
     has_mem = bool(mem)
     has_schema = bool(os.environ.get("FRONTMATTER_SCHEMA"))
+    # Same rule as the memory store: NAMED is enough to run it. Testing whether the file exists here
+    # would turn a mistyped or moved register into an unused feature -- doctor would skip it, say
+    # "required config not set", and roll up OK. The engine exits 3 for a register it cannot read.
+    has_register = bool(os.environ.get("IDENTIFIER_REGISTER"))
 
     # name, engine file, args, gates(can fail roll-up), applicable
     plan = [
@@ -119,6 +123,12 @@ def main():
         ("ref-audit", "vault-ref-audit.py", ["--check", "--json"] + (["--strict"] if strict else [])
          + (["--since", since] if since else []) + (["--staged"] if staged else []), True, True),
         ("frontmatter-lint", "vault-frontmatter-lint.py", ["--check", "--json"], False, has_schema),
+        # Advisory, like frontmatter-lint: identifier conformance IS collection health, but the
+        # report is deliberately non-blocking (enforcement is --guard's job, scoped to the lines a
+        # change touches), so it contributes numbers and can never fail the roll-up.
+        # --json WITHOUT --check: this member is advisory, and --check is what turns the engine into
+        # a gate. Passing both would ask for a verdict and then declare the verdict non-binding.
+        ("register-lint", "register-lint.py", ["--json"], False, has_register),
         ("memory-consolidate", "memory-consolidate.py", ["--check"], True, has_mem),
     ]
 

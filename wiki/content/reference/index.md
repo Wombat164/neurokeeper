@@ -299,8 +299,26 @@ tags:
 - **Flags:** `--root <path>` lints another collection, `--check` for the gate, `--json` for a
   machine consumer, plus `--guard` / `--guard-ref` / `--hook` / `--verbose` / `--staged` / `--since`
   described above.
-- **Exit codes:** `0` conformant, `1` findings, `2` no register configured, `3` register named and
-  unusable. An entry with no `source` is refused rather than assumed decided.
+- **A register with no `tier_fields` reports NOT CONFIGURED, not OK.** Such a register names no
+  frontmatter field, so every mode watches nothing. It once printed "OK: every declared identifier
+  is used as the register describes (141 entities)" over a scan of zero fields; a pass over nothing
+  is the most expensive kind of green.
+- **Aliases may be declared centrally**, as one `alias -> canonical` map, as well as per entity.
+  Both shapes are real - per-entity keeps the name beside the thing, a central map is what you get
+  when the spellings were collected before the entities were. A register using only the central
+  shape previously lost every alias silently, and alias is the one class exact matching cannot see.
+  An alias naming a missing entity is refused rather than mapped.
+- **One value can be zero, one or several identifiers.** An empty list is an ABSENT value, not a
+  wrong one; `[A, B]` is two identifiers rather than one badly-spelled one; `[[A]]` is a reference
+  to A. Measured on a real 3000-note collection this cut 418 findings to 111 with all 95 enforceable
+  ones unchanged - the remainder were artefacts, and a report that is 84% artefact is one nobody
+  opens, which is how a check gets switched off.
+- **Composed into `doctor` as advisory** whenever `IDENTIFIER_REGISTER` is set: it contributes its
+  counts to the report and can never fail the roll-up.
+- **Exit codes:** `0` reported, whether or not there were findings; `1` findings **and** `--check`,
+  since `--check` is what turns the report into a gate; `2` no register configured, or a register
+  declaring no `tier_fields`; `3` register named and unusable. An entry with no `source` is refused
+  rather than assumed decided.
 
 ### `custody-audit`
 - **compute x effect:** deterministic x read-only.
