@@ -6,6 +6,97 @@ Full per-release notes: https://github.com/Wombat164/neurokeeper/releases
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-08-17
+
+The release where the library stopped being read-only. Every item below was extracted from a private
+consumer that had been carrying it, which is the second half of paying the core back that 0.10.0
+started. The theme running through all of it: a primitive whose load-bearing property fails SILENTLY
+when someone re-implements it, and therefore has to be exported rather than described.
+
+### Added
+- **`content_hash`, `normalise_marking`, `load_forbidden_zones`.** Small primitives with sharp
+  edges, each carrying one property that fails SILENTLY when lost.
+
+  `content_hash` separates its parts with a NUL, without which `("ab","c")` and `("a","bc")` hash
+  identically and an idempotency ledger treats one item as a re-import of another.
+
+  `normalise_marking` folds `TLP: Amber`, `tlp:amber` and `TLP  :  AMBER` to one form. A policy
+  comparing raw strings treats those as three markings, which is how a rule permitting one quietly
+  fails to permit the others.
+
+  `load_forbidden_zones` completes a surface that shipped half-built: `in_forbidden_zone` and
+  `safe_write(zones=...)` both existed with no way to LOAD a zones file, so every consumer parsed
+  it themselves, and the parse is where the trap is. A rationale may follow the path after a single
+  space, because zone paths contain single spaces; take the whole line as the path and every prefix
+  match fails, which silently disables the entire write-ban while the loader still reports the
+  right number of zones. A ban that is loaded, counted and inert is worse than one that is absent.
+
+- **`_config.py`: layered configuration, engine defaults with a site config merged over them.**
+  Every engine here ships defaults and lets a site override them, and each had grown its own way of
+  doing it. Five functions that looked separate are one mechanism: read a YAML config, compile its
+  patterns, merge them over defaults, and name the offending key in every complaint.
+
+  ADDITIVE BY DEFAULT, because the common intent is "also match this", and a merge that silently
+  discarded the built-ins would disable checks the engine advertises while reporting success.
+  Replacement exists and must be asked for.
+
+  EVERY COMPLAINT NAMES ITS KEY. The `where` argument threaded through all five is the whole
+  design, tedious as it is at each call site: "bad regex" is a fact, "in people.members.vip: bad
+  regex" is actionable.
+
+  The failure it prevents is a typo'd section that silently does nothing. A config read, ignored
+  and never mentioned is indistinguishable from one that worked, and the operator finds out when
+  the rule they wrote never fires.
+
+- **The Item contract and its projections**: `ITEM_FIELDS`, `make_item`, `correlation_envelope`,
+  `read_gate_frontmatter`. One shape for "something ingested from outside", plus the projections
+  that turn it into what a particular consumer wants.
+
+  `correlation_envelope` matters most: it is the INPUT CONTRACT OF `correlate`, and it lived in a
+  private consumer. Anyone using the published engine had to reverse-engineer the envelope from
+  prose, and every new source reader was free to invent its own, which a correlation engine cannot
+  distinguish from a worse corpus.
+
+  It carries a MEASURED NEGATIVE RESULT, kept because the intuition it refutes is a good one:
+  qualifying an item's title with its container looked like free retrieval signal and measured
+  worse (ambiguous +7, correlated -6, anchored -1 over a 411-item corpus). Context that differs per
+  chunk discriminates; a container name is identical across everything in it, so it manufactures
+  ties. Pinned by a test so intuition does not undo it.
+
+  `read_gate_frontmatter` keeps a distinction worth stating: a DETECTED MARKING IS NOT A
+  CLASSIFICATION. A classification is an authority's assertion; a detected marking is a regex hit
+  that fires as readily on text discussing markings as on text carrying them. Provenance and
+  inherited marking stay separate fields, or a rule denying on inheritance denies everything.
+
+- **`render_frontmatter` and `yaml_scalar`: the writer half of the frontmatter contract.** This
+  library could READ frontmatter and not write it, so every engine emitting a note hand-rolled the
+  other half and each copy learned the quoting edge cases separately or not at all. A parser
+  without its writer is half a contract.
+
+  The edge cases are not theoretical; both were found by emitting real note titles. A title
+  carrying a control character cannot be saved by quoting, because YAML rejects the raw byte inside
+  the quotes too, so whitespace folds and other C0 characters are dropped. A title starting with
+  `- ` reads as a sequence entry no matter what follows, which a trigger list checking for `:` and
+  friends misses.
+
+  Output is deterministic and insertion-ordered, which is the load-bearing property: a re-render of
+  unchanged input produces identical bytes, so a content hash can mean "someone edited this".
+  Reorder the keys and every re-render reads as a hand-edit, which makes an idempotency ledger
+  useless.
+
+- **`report_name`: one definition of a report filename.** Three engines already agreed on
+  `<engine>-[<source>-]<stamp>.<ext>`, each via its own f-string, so there was no behaviour to
+  unify. What there was to unify is the ability to DRIFT: change the stamp in one and the others
+  keep the old one, and a directory of reports stops sorting together with nothing reporting an
+  error. Three literals is not much duplication; it is exactly enough for two to be edited and the
+  third forgotten.
+
+- **`tests/test_lib_surface_documented.py`: the documented surface is now gated.** The wiki-coverage
+  gate checks CLI flags, which left the importable surface -- the one external engine authors are
+  told to rely on -- unchecked, and it had already drifted. Both directions are enforced: a name
+  exported and undocumented is a capability someone re-implements; a name documented and not
+  exported is an `ImportError` in a consumer's repository, discovered at their runtime.
+
 ## [0.10.0] - 2026-08-17
 
 The release where the private consumer paid the core back: three of the fixes below were found by wiring these engines into a real 3000-note collection and a real mail corpus, not by reading the code.

@@ -138,6 +138,59 @@ def md_files(vault=None, exclude=None):
             if f.endswith(".md"):
                 yield os.path.join(root, f), rel
 
+def yaml_scalar(v):
+    """Quote a frontmatter value only when leaving it bare would change its meaning.
+
+    Two cases found by emitting real note titles into a real collection, both of which produced
+    frontmatter the collection's own linter could not parse:
+
+    * A title carrying a newline or a control character (a vertical tab, in the wild). Quoting alone
+      does not save it, because YAML rejects the raw control byte inside the quotes too, so all
+      whitespace folds to single spaces and other C0 characters are dropped outright.
+    * A title starting with "- ", which YAML reads as a sequence entry no matter what follows. A
+      trigger list that checks for ":" and friends but not a leading dash misses it.
+    """
+    s = str(v)
+    s = re.sub(r"[\t\n\r\v\f]+", " ", s)
+    s = re.sub(r"[\x00-\x1f\x7f]", "", s)
+    s = re.sub(r"\s{2,}", " ", s).strip()
+    if s == "":
+        return '""'
+    if (re.search(r"[:#\[\]{},&*!|>'\"%@`]|^\s|\s$|^(?:yes|no|true|false|on|off|null|~)$", s, re.I)
+            or re.match(r"^[-?]\s|^-$", s)):
+        return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    return s
+
+
+def render_frontmatter(fields):
+    """Deterministic YAML frontmatter from an ordered mapping. The caller controls layout.
+
+    This library could READ frontmatter and not write it, so every engine that emits a note
+    hand-rolled the other half, and each hand-rolled copy learned the quoting edge cases above
+    separately or not at all. A parser without its writer is half a contract.
+
+    Determinism is the load-bearing property: with it, a re-render of unchanged input produces
+    identical bytes, so a content hash means "someone edited this". Reorder the keys and every
+    re-render reads as a hand-edit, which makes an idempotency ledger useless.
+
+    Empty values are omitted rather than emitted as blanks: a key with no value is a claim that the
+    field was considered and left empty, which is not the same as absent.
+    """
+    lines = ["---"]
+    for k, v in fields.items():
+        if v is None or v == [] or v == "":
+            continue
+        if isinstance(v, (list, tuple)):
+            lines.append(f"{k}:")
+            lines.extend(f"  - {yaml_scalar(x)}" for x in v)
+        elif isinstance(v, bool):
+            lines.append(f"{k}: {'true' if v else 'false'}")
+        else:
+            lines.append(f"{k}: {yaml_scalar(v)}")
+    lines.append("---")
+    return "\n".join(lines) + "\n"
+
+
 def split_frontmatter(text):
     """Return (frontmatter_body, rest_including_closing_fence) or (None, text) if no frontmatter."""
     if not text.startswith("---"):
