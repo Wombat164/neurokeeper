@@ -37,7 +37,9 @@ from _vault_lib import (  # noqa: E402
     kebabify,
     md_files,
     parse_frontmatter,
+    render_frontmatter,
     split_frontmatter,
+    yaml_scalar,
 )
 
 # Guarded imports: these come from modules that exist in every supported layout, but an external
@@ -55,6 +57,9 @@ except ImportError:  # pragma: no cover
 __all__ = [
     # walking and reading a collection
     "VAULT", "md_files", "split_frontmatter", "parse_frontmatter",
+    # ...and the writer. Reading frontmatter without being able to write it is half a contract,
+    # and every engine that emitted a note hand-rolled the other half.
+    "render_frontmatter", "yaml_scalar",
     # naming
     "kebabify",
     # writing safely, for engines that mutate on --apply

@@ -140,13 +140,16 @@ from neurokeeper.lib import (
     md_files,            # the markdown walk: yields (abspath, reldir), honours VAULT_ROOT + VAULT_SCAN_EXCLUDE
     split_frontmatter,   # (frontmatter_text, rest) or (None, text)
     parse_frontmatter,   # dict | None | {"__parse_error__": True}; carries the 64KB alias-bomb guard
+    render_frontmatter,  # the WRITER: deterministic, insertion-ordered YAML frontmatter
+    yaml_scalar,         # quote a single value only when leaving it bare would change its meaning
     find_links,          # wikilink / markdown-link extraction via the active backend; yields Link(target, anchor, alias, embed)
     kebabify,            # the code/acronym-preserving slug engine
     within_vault,        # is this path confined to the vault?
-    safe_write,          # write guard: refuses symlinks and out-of-vault targets (raises VaultWriteError)
+    safe_write,          # ATOMIC write guard: refuses symlinks and out-of-vault targets, optional zones
     in_forbidden_zone,   # honours VAULT_FORBIDDEN_ZONES
     force_utf8_stdout,   # cross-platform UTF-8 stdout/stderr
     Finding, to_sarif,   # the Findings IR + its SARIF renderer
+    VAULT,               # the resolved collection root
 )
 ```
 

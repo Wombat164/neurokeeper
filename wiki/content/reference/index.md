@@ -543,6 +543,42 @@ tags:
 
 ---
 
+## The library surface (`neurokeeper.lib`)
+
+What an engine in *your* repository may import and rely on. Names and signatures here change only
+with a major version; anything whose module name begins with an underscore is internal and may
+change in a patch release. The full list, with the contract for each, is on the
+[extend-with-your-own-engine](../how-to/extend-with-your-own-engine) page, and a test asserts the
+two agree in both directions.
+
+Worth knowing about three of them, because each carries a property that fails quietly if you
+re-implement it yourself:
+
+- **`safe_write` is ATOMIC.** It writes a temp file beside the target and renames. Opening the
+  target directly truncates it at once, so an interrupted run leaves a half-written or empty note,
+  and these engines are bulk mutators walking thousands of files. It also takes an optional `root`
+  (an explicit confinement boundary, for an engine writing to a staging directory) and `zones` with
+  `allow_zones` (refuse writes into configured forbidden zones). Both default off.
+- **`render_frontmatter` is deterministic and insertion-ordered.** Re-rendering unchanged input
+  produces identical bytes, which is what lets a content hash mean "someone edited this". Reorder
+  the keys and every re-render reads as a hand-edit, and an idempotency ledger stops working.
+- **`parse_frontmatter` and `render_frontmatter` are two halves of one contract.** The writer was
+  added in 0.11.0; before that the library could read frontmatter and not write it, so every engine
+  emitting a note hand-rolled the quoting and learned the edge cases separately or not at all.
+
+## Layered configuration (`_config`)
+
+Internal, but the shape is worth stating because every engine's site config behaves this way:
+defaults ship with the engine and a site config is merged **over** them, **additively by default**.
+The common intent is "also match this", and a merge that silently discarded the built-ins would
+disable checks the engine advertises while reporting success. Replacement exists and must be asked
+for explicitly.
+
+Every complaint names its config key. An unknown section, an unknown scalar key and a bad regex are
+all reported with the location that produced them, and a `strict` mode promotes any of them to a
+refusal. The failure this prevents is a typo'd section that silently does nothing: the file parses,
+the engine runs, the rule never fires, and nothing anywhere says why.
+
 ## The metadata-header spec
 
 Every engine carries a machine-parseable header in its top comment block (one field per line, matching
