@@ -6,6 +6,26 @@ Full per-release notes: https://github.com/Wombat164/neurokeeper/releases
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-08-17
+
+### Fixed
+- **`_ingest_core` raised `TypeError` on import under Python 3.9**, the floor this package
+  advertises. `datetime | None` in a signature is evaluated at import time and PEP 604 needs 3.10;
+  `from __future__ import annotations` makes it a string. Every consumer on the advertised floor got
+  an unusable module, so 0.11.0 is broken there and this release replaces it.
+
+  The interesting part is how it shipped. The local suite passed (a newer interpreter), review
+  passed, and the 3.9 rows of the CI matrix failed in plain sight -- read from a truncated view of
+  the check list and merged as green. A rule that only one machine in the fleet can check is not a
+  rule anyone can follow.
+
+### Added
+- **`tests/test_python_floor_syntax.py`: the floor is checkable on whatever interpreter you have.**
+  An AST walk reports `X | Y` annotations evaluated at import in modules without the `__future__`
+  import, so it fails on 3.14 exactly as it would on 3.9. The floor is READ from `requires-python`
+  rather than hard-coded, and the gate is proved able to fire against a planted offender -- while
+  staying quiet on value-level `a | b`, because a noisy gate is an ignored one.
+
 ## [0.11.0] - 2026-08-17
 
 The release where the library stopped being read-only. Every item below was extracted from a private
