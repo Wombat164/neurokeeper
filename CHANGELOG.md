@@ -6,6 +6,54 @@ Full per-release notes: https://github.com/Wombat164/neurokeeper/releases
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-08-17
+
+The release where the private consumer paid the core back: three of the fixes below were found by wiring these engines into a real 3000-note collection and a real mail corpus, not by reading the code.
+
+### Fixed
+- **`safe_write` truncated the target before writing it.** It opened the destination directly, so a
+  run interrupted between that and the last byte left a half-written or empty file. The engines it
+  backs are bulk mutators walking thousands of notes, and the damage is to exactly the content the
+  caller was trying to preserve. It now writes a temp file beside the target and `os.replace`s it,
+  which is atomic on POSIX and on Windows for a same-directory rename; on failure the partial is
+  removed and the original is left untouched. Verified by a test the previous implementation fails:
+  the rename is made to raise and the original is asserted byte-identical.
+
+### Added
+- **`safe_write` gains `root`, `zones` and `allow_zones`**, all defaulting off so existing callers
+  are unaffected. `root` makes the confinement boundary explicit instead of always the global vault,
+  which is what an ingestion engine writing to a staging directory needs; `zones` refuses a write
+  into a configured forbidden zone, with `allow_zones` as the deliberate override.
+
+  Ported from a private consumer that had all three properties while this core had none of them.
+  Worth stating plainly rather than quietly: the generic core was the weaker of the two
+  implementations, because the private one is where the writes actually hurt.
+
+### Fixed
+- **`register-lint` reported OK over a scan of nothing.** A register that declares entities but no
+  `tier_fields` names no frontmatter field, so the check watched nothing and still printed "OK:
+  every declared identifier is used as the register describes (141 entities)". Found on a real
+  register. It now reports NOT CONFIGURED, because a pass over nothing is the most expensive kind
+  of green.
+- **A central `alias -> canonical` map was ignored.** Aliases were read per entity only, so a
+  register declaring them centrally lost every alias silently - and alias is the one class exact
+  matching cannot see, which made the check look present while catching nothing. An alias naming a
+  missing entity is now refused rather than mapped to nothing.
+- **List and wikilink values were stringified and checked as single identifiers.** An empty list
+  became the literal identifier `[]`, `[A, B]` became one nonexistent name instead of two real
+  ones, and `[[A]]` never resolved to A. On a real 3000-note collection that was 418 findings of
+  which 307 were artefacts; after the fix, 111 findings with all 95 enforceable ones unchanged. An
+  empty value is ABSENT, not wrong - the same distinction the exit contract draws one layer down.
+- **`register-lint` printed "this report never blocks" and exited 1 anyway.** The contradiction
+  made it impossible to compose as an advisory member of an aggregate: the whole roll-up went red
+  on findings the report itself calls non-blocking. Findings now exit 0 unless `--check` is passed,
+  which is what turns the report into a gate.
+
+### Changed
+- **`register-lint` is composed into `doctor`** as an advisory member whenever
+  `IDENTIFIER_REGISTER` is set. Identifier conformance is collection health; it contributes counts
+  and can never fail the roll-up.
+
 ## [0.9.0] - 2026-08-16
 
 Three engines that answer questions the tool could not answer before: how do I start, what stops a new contradiction entering, and what should link to what.

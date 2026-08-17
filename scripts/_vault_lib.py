@@ -73,16 +73,56 @@ def within_vault(path, vault=None):
     return real == root or real.startswith(root + os.sep)
 
 
-def safe_write(path, text, newline=""):
-    """Write `text` to a REAL file confined to the vault. Refuses (raises VaultWriteError) if `path`
-    is a symlink, or if it resolves outside realpath(VAULT) -- a symlink-escape / path-traversal guard
-    for the bulk mutators. newline='' preserves the file's existing CRLF/LF. Returns the path written."""
+def safe_write(path, text, newline="", root=None, zones=None, allow_zones=False):
+    """Write `text` to a REAL file confined to the collection, ATOMICALLY.
+
+    Refuses (raises VaultWriteError) if `path` is a symlink, or resolves outside realpath(root or
+    VAULT) -- the symlink-escape / path-traversal guard the bulk mutators depend on. newline=''
+    preserves the file's existing CRLF/LF. Returns the path written.
+
+    ATOMIC since 2026-08-17, and this is a correctness fix rather than a nicety. The previous
+    version opened the target directly, which TRUNCATES it at once: a run interrupted between that
+    and the last byte left a half-written or empty note, and the engines this backs are bulk
+    mutators walking thousands of files. The failure is silent and the damage is to content the
+    caller was trying to preserve. Now: write a temp file beside the target, then os.replace, which
+    is atomic on POSIX and on Windows for a same-directory rename. On failure the partial file is
+    removed and the ORIGINAL is left untouched.
+
+    `root` makes the confinement boundary explicit instead of always the global VAULT, which is what
+    an ingestion engine writing to a staging directory needs. `zones` refuses a write whose path
+    falls inside a configured forbidden zone, with `allow_zones` as the deliberate override; both
+    default off, so every existing caller is unaffected.
+
+    Ported from a private consumer's ingestion core, which had all three properties while this one
+    had none of them. The generic core being the weaker of two implementations is worth stating
+    plainly: the private version was ahead because that is where the writes actually hurt.
+    """
+    boundary = root or VAULT
     if os.path.islink(path):
         raise VaultWriteError(f"refusing to write through symlink: {path}")
-    if not within_vault(path):
-        raise VaultWriteError(f"refusing to write outside vault: {path}")
-    with open(path, "w", encoding="utf-8", newline=newline) as f:
-        f.write(text)
+    if not within_vault(path, boundary):
+        raise VaultWriteError(f"refusing to write outside {boundary}: {path}")
+    if zones and not allow_zones:
+        rel = os.path.relpath(os.path.realpath(path), os.path.realpath(boundary))
+        zone = in_forbidden_zone(os.path.dirname(rel).replace(os.sep, "/"), zones)
+        if zone:
+            raise VaultWriteError(f"refusing to write into forbidden zone: {rel}")
+
+    d = os.path.dirname(os.path.abspath(path))
+    os.makedirs(d, exist_ok=True)
+    tmp = f"{path}.tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8", newline=newline) as f:
+            f.write(text)
+        os.replace(tmp, path)
+    except Exception:
+        # Leave the ORIGINAL intact and take the partial with us: a half-written .tmp lying beside
+        # the real file is the next reader's trap.
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        raise
     return path
 
 def md_files(vault=None, exclude=None):

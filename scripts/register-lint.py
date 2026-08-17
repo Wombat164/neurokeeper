@@ -69,8 +69,66 @@ def frontmatter(text):
     return out
 
 
+# A frontmatter value is read as text, so a list arrives as "[A, B]" and an empty one as "[]".
+_INLINE_LIST = re.compile(r"^\[(.*)\]$", re.S)
+# Sentinels meaning "deliberately none". An author writing `programme: none` has answered the
+# question; reporting it as an unknown identifier tells them their answer is a typo.
+_EMPTY_VALUES = {"", "none", "n/a", "na", "tbd", "-", "null", "~", "[]", "{}"}
+
+
+def split_values(raw):
+    """The identifiers in one frontmatter value.
+
+    Three shapes were being stringified and checked as if each were a single identifier, which on a
+    real collection produced 323 'unknown' findings of which 270 were the literal text `[]`:
+
+      * an EMPTY list is an absent value, not a wrong one -- the same absent-versus-empty confusion
+        the exit contract fixes one layer down;
+      * a list of identifiers is several values, and checking `"[ALPHA, BRAVO]"` as one name reports
+        a thing nobody wrote while missing whichever member is genuinely misfiled;
+      * a wikilink is a REFERENCE to the identifier, so `[[ALPHA]]` means ALPHA.
+
+    Noise of that scale is not cosmetic. A reader who opens a report and finds it is 84% artefact
+    stops opening the report, which is the documented way a check gets switched off.
+    """
+    v = str(raw).strip().strip("\"'").strip()
+    if v.lower() in _EMPTY_VALUES:
+        return []
+    # Wikilink BEFORE list: `[[A]]` also matches the inline-list shape, and letting the list branch
+    # win strips one bracket pair and yields the literal `[A]`, which resolves to nothing. That is
+    # how a link to a note the register knows was reported as an unknown identifier.
+    # `count("[[") == 1` separates ONE link from a LIST of links: `[[A]]` is a link, while
+    # `[[[A]], [[B]]]` is two, and treating the second as a single link mangles it into one
+    # nonexistent name.
+    if v.startswith("[[") and v.endswith("]]") and v.count("[[") == 1:
+        v = v[2:-2].split("|")[0].split("#")[0].strip()
+        return [v] if v and v.lower() not in _EMPTY_VALUES else []
+    m = _INLINE_LIST.match(v)
+    if m:
+        parts = [p.strip().strip("\"'") for p in m.group(1).split(",")]
+        out = []
+        for p in parts:
+            p = p.strip()
+            if p.startswith("[[") and p.endswith("]]"):
+                p = p[2:-2].split("|")[0].split("#")[0].strip()
+            if p and p.lower() not in _EMPTY_VALUES:
+                out.append(p)
+        return out
+    return [v] if v and v.lower() not in _EMPTY_VALUES else []
+
+
 def check_value(reg, field, value, lineno, path):
     """Findings for one frontmatter value. Returns a list; usually empty."""
+    values = split_values(value)
+    if len(values) != 1:
+        # Zero (absent) or several (a list): recurse so every member is judged on its own, and an
+        # empty value produces nothing at all.
+        out = []
+        for v in values:
+            out.extend(check_value(reg, field, v, lineno, path))
+        return out
+    value = values[0]
+
     out = []
     ident, how = reg.resolve(value)
 
@@ -248,6 +306,19 @@ def main():
 
     root = os.path.abspath(args.root)
 
+    # A register with no tier_fields names no frontmatter field, so every mode below examines
+    # nothing. Left alone this printed "OK: every declared identifier is used as the register
+    # describes (141 entities)" over a scan of zero fields -- a clean bill of health from a check
+    # that never ran, which is the exact failure this project exists to prevent. Found on a real
+    # register that declared 141 entities and no tier_fields at all.
+    if not reg.tier_fields:
+        print(f"register-lint: the register at {reg.path} declares {len(reg.entities)} entities but "
+              f"no `tier_fields`, so no frontmatter field is checked.\n"
+              f"  Add a tier_fields map (tier -> the field that tier belongs under) to enable it. "
+              f"Reporting NOT CONFIGURED rather than OK: a pass over nothing is not a pass.",
+              file=sys.stderr)
+        return EXIT_UNCONFIGURED
+
     if args.guard:
         return guard(reg, root, args.guard, ref=args.guard_ref, as_hook=args.hook,
                      quiet_ok=not args.verbose)
@@ -275,7 +346,7 @@ def main():
         print(json.dumps({"register": reg.path, "entities": len(reg.entities),
                           "counts": counts, "findings": findings,
                           "pre_existing_out_of_scope": pre_existing_out_of_scope}, indent=2))
-        return EXIT_FINDINGS if findings else EXIT_OK
+        return (EXIT_FINDINGS if (findings and args.check) else EXIT_OK)
 
     if not findings:
         print(f"register-lint OK: every declared identifier is used as the register describes "
@@ -293,7 +364,10 @@ def main():
               f"counted and not listed.")
     print("\n  This report never blocks. Enforcement is --guard's job, scoped to the lines a change "
           "touches (ADR-0005).")
-    return EXIT_FINDINGS
+    # ...and the exit code must say the same thing. It returned 1 unconditionally while printing
+    # that it never blocks, so composing it into an aggregate as an ADVISORY member turned the whole
+    # roll-up red. A report that contradicts its own exit code is a report nobody can wire up.
+    return EXIT_FINDINGS if args.check else EXIT_OK
 
 
 if __name__ == "__main__":

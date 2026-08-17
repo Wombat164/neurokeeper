@@ -180,3 +180,77 @@ def test_out_of_scope_findings_are_counted_not_discarded(repo, tmp_path):
     r = _run(repo, tmp_path, "--since", "HEAD")
     assert "pre-existing" in r.stdout
     assert r.returncode == 0
+
+
+def test_a_register_with_no_tier_fields_is_not_a_pass(repo, tmp_path):
+    """A register naming no field checks nothing, and must not report OK.
+
+    Found on a real register: 141 entities, no tier_fields, and the engine printed "OK: every
+    declared identifier is used as the register describes (141 entities)" over a scan of zero
+    fields. A clean bill of health from a check that never ran is worse than no check, because it
+    is believed.
+    """
+    (tmp_path / "register.yaml").write_text(
+        "tiers: [agreement]\nentities:\n  ALPHA-1:\n    tier: agreement\n    source: decided\n",
+        encoding="utf-8")
+    _commit(repo, "doc.md", OLD_BAD)
+    r = _run(repo, tmp_path)
+    assert r.returncode == 2, r.stdout + r.stderr
+    assert "no `tier_fields`" in r.stderr
+    assert "OK" not in r.stdout
+
+
+def test_a_central_alias_map_is_read(repo, tmp_path):
+    """Aliases declared centrally, not per entity.
+
+    Both shapes are real: per-entity keeps the name beside the thing, a central map is what you get
+    when spellings were collected before entities were. Reading only the first shape lost every
+    alias silently -- and alias is the one class exact matching cannot see, so the check looked
+    present and caught nothing.
+    """
+    (tmp_path / "register.yaml").write_text(
+        "tiers: [agreement]\ntier_fields:\n  agreement: contract\n"
+        "aliases:\n  alpha1: ALPHA-1\n"
+        "entities:\n  ALPHA-1:\n    tier: agreement\n    source: decided\n", encoding="utf-8")
+    _commit(repo, "doc.md", "---\ntitle: clean\n---\n\nbody\n")
+    (repo / "doc.md").write_text("---\ntitle: clean\ncontract: alpha1\n---\n\nbody\n",
+                                 encoding="utf-8")
+    r = _run(repo, tmp_path, "--guard", str(repo / "doc.md"))
+    assert r.returncode == 1, r.stdout + r.stderr
+    assert "ALPHA-1" in r.stderr
+
+
+def test_a_central_alias_to_nothing_is_refused(repo, tmp_path):
+    # An alias pointing at a missing entity would resolve values to an identifier the register
+    # cannot describe, and every verdict about them would be invented.
+    (tmp_path / "register.yaml").write_text(
+        "tiers: [agreement]\ntier_fields:\n  agreement: contract\n"
+        "aliases:\n  ghost: NOT-AN-ENTITY\n"
+        "entities:\n  ALPHA-1:\n    tier: agreement\n    source: decided\n", encoding="utf-8")
+    r = _run(repo, tmp_path)
+    assert r.returncode == 3, r.stdout + r.stderr
+    assert "no such entity" in r.stderr
+
+
+def test_the_report_does_not_block_without_check(repo, tmp_path):
+    """It printed "This report never blocks" and returned 1 anyway.
+
+    That contradiction made it impossible to compose as an ADVISORY member of an aggregate: doctor
+    added it, and the whole roll-up went red on findings the report itself calls non-blocking.
+    """
+    _commit(repo, "doc.md", OLD_BAD)
+    r = _run(repo, tmp_path)
+    assert "finding(s)" in r.stdout          # it DID find something
+    assert r.returncode == 0                 # and it still did not block
+
+
+def test_check_is_what_makes_it_a_gate(repo, tmp_path):
+    # The other half: --check must still fail, or the gate is gone entirely.
+    _commit(repo, "doc.md", OLD_BAD)
+    assert _run(repo, tmp_path, "--check").returncode == 1
+
+
+def test_json_mode_follows_the_same_rule(repo, tmp_path):
+    _commit(repo, "doc.md", OLD_BAD)
+    assert _run(repo, tmp_path, "--json").returncode == 0
+    assert _run(repo, tmp_path, "--json", "--check").returncode == 1

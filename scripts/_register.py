@@ -65,6 +65,29 @@ class Register:
                                          "aliases": list(body.get("aliases") or [])}
             for a in self.entities[str(ident)]["aliases"]:
                 self.alias_to_id[str(a).lower()] = str(ident)
+        # A register may also declare aliases centrally, as one `alias -> canonical` map, rather
+        # than per entity. Both shapes are real: per-entity keeps a name beside the thing it names,
+        # a central map is what you get when the spellings were collected before the entities were.
+        # Reading only the first shape meant a register using the second lost EVERY alias silently,
+        # and the alias class is the one exact matching cannot see -- so the check would have looked
+        # present and caught nothing.
+        central = data.get("aliases") or {}
+        if isinstance(central, dict):
+            for alias, canonical in central.items():
+                canonical = str(canonical)
+                if canonical not in self.entities:
+                    # Named a target that does not exist. Refused rather than mapped, because an
+                    # alias pointing at nothing would resolve values to an identifier the register
+                    # cannot describe, and every downstream verdict about them would be invented.
+                    raise RegisterError(
+                        f"alias {alias!r} -> {canonical!r}: no such entity. Either add the entity "
+                        f"or drop the alias; an alias to nothing resolves values to an identifier "
+                        f"nothing can be said about.")
+                self.alias_to_id.setdefault(str(alias).lower(), canonical)
+                self.entities[canonical]["aliases"].append(str(alias))
+        elif central:
+            raise RegisterError("aliases: must be a mapping of alias -> canonical identifier")
+
         self.edges = []
         for e in data.get("edges") or []:
             if not all(k in e for k in ("from", "type", "to")):
