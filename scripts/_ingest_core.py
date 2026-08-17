@@ -31,6 +31,11 @@ baking in programme codes. `self_test()` proves every language a site DECLARES a
 probes that site wrote for it, because a pattern firing in one language and silently not in another
 under-scores that share of the corpus while the report still looks healthy.
 """
+# Annotations become strings, so `datetime | None` in a signature is not EVALUATED on import.
+# Without this the module raises TypeError on Python 3.9 -- the floor this package advertises --
+# while passing on any newer interpreter, which is exactly how it reached a release.
+from __future__ import annotations
+
 import re
 from datetime import datetime, timezone
 
