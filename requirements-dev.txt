@@ -1,5 +1,5 @@
 # neurokeeper -- dev/test dependencies (single source of truth for CI + contributors).
 # Runtime needs only the stdlib + pyyaml; these are for testing/linting the engines.
-pyyaml>=6.0
-pytest>=8.0
-ruff>=0.6
+pyyaml>=6.0.3
+pytest>=9.1.1
+ruff>=0.16.3
