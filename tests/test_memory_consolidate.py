@@ -100,7 +100,13 @@ def test_per_type_decay_halflife(tmp_path):
         "ref-note.md": "---\nmetadata:\n  type: reference\n---\nbody\n",
         "proj-note.md": "---\nmetadata:\n  type: project\n---\nbody\n",
     })
-    d = _json(store, "--today", "2027-03-01")   # ~245d after the files' mtime, so recency < 1 for both
+    # PIN the age, as in the snooze test below: with the real mtime the verdict drifts with the calendar
+    # (both notes count as fresh once the run date nears 2027-03-01, and their importance ties).
+    import datetime
+    old = datetime.datetime(2026, 7, 1).timestamp()
+    for name in ("ref-note.md", "proj-note.md"):
+        os.utime(store / name, (old, old))
+    d = _json(store, "--today", "2027-03-01")   # both ~243d old, so recency < 1 for both
     imp = {r["file"]: r["importance"] for r in d["lowest_importance"]}
     assert imp["ref-note.md"] > imp["proj-note.md"]   # reference base half-life 270 > project 90
 
@@ -112,7 +118,14 @@ def test_reviewed_ttl_snooze_excludes_from_stale(tmp_path):
         "stale-one.md": "---\nmetadata:\n  type: project\n---\nold unreferenced body\n",
         "snoozed-one.md": "---\nreviewed: 2027-02-20\nttl: 90\nmetadata:\n  type: project\n---\nold body\n",
     })
-    d = _json(store, "--today", "2027-03-01")   # both ~245d old; snoozed reviewed 9d ago (< ttl 90)
+    # PIN the age. It was the files' real mtime ("now"), so "~245d old at 2027-03-01" held only on
+    # the day the test was written; by 2026-09-30 they were ~150d old and the test failed. A test
+    # whose verdict depends on the calendar day it runs is not deterministic.
+    import datetime
+    old = datetime.datetime(2026, 7, 1).timestamp()
+    for name in ("stale-one.md", "snoozed-one.md"):
+        os.utime(store / name, (old, old))
+    d = _json(store, "--today", "2027-03-01")   # both ~243d old; snoozed reviewed 9d ago (< ttl 90)
     stale_files = [r["file"] for r in d["stale"]]
     assert "stale-one.md" in stale_files            # old + unreferenced + project half-life -> stale
     assert "snoozed-one.md" not in stale_files       # recent reviewed:/ttl: suppresses staleness

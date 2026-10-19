@@ -9,7 +9,7 @@ param(
 )
 $ErrorActionPreference = "Stop"
 function Have($n) { [bool](Get-Command $n -ErrorAction SilentlyContinue) }
-function Winget($id) { winget install --id $id -e --accept-source-agreements --accept-package-agreements -h }
+function Install-WingetPackage($id) { winget install --id $id -e --accept-source-agreements --accept-package-agreements -h }
 
 Write-Host "== 1. headless toolchain (winget) ==" -ForegroundColor Cyan
 $pkgs = @{
@@ -17,10 +17,10 @@ $pkgs = @{
   pandoc="JohnMacFarlane.Pandoc"; pwsh="Microsoft.PowerShell"; uv="astral-sh.uv"; rg="BurntSushi.ripgrep.MSVC"
 }
 foreach ($k in $pkgs.Keys) {
-  if (Have $k) { Write-Host "  ok  $k" } else { Write-Host "  installing $k..."; Winget $pkgs[$k] }
+  if (Have $k) { Write-Host "  ok  $k" } else { Write-Host "  installing $k..."; Install-WingetPackage $pkgs[$k] }
 }
 # glab + gitleaks: winget id varies / not always present -> try winget then scoop
-if (-not (Have glab))     { try { Winget "GLab.GLab" } catch { Write-Host "  glab: install via scoop/GH release (see manifest)" -ForegroundColor Yellow } }
+if (-not (Have glab))     { try { Install-WingetPackage "GLab.GLab" } catch { Write-Host "  glab: install via scoop/GH release (see manifest)" -ForegroundColor Yellow } }
 if (-not (Have gitleaks)) { Write-Host "  gitleaks: scoop install gitleaks (or GH release) -- see manifest" -ForegroundColor Yellow }
 
 Write-Host "== 2. Claude Code + python deps ==" -ForegroundColor Cyan
